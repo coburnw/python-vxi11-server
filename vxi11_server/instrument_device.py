@@ -1,0 +1,261 @@
+# MIT License
+
+# Copyright (c) [2019] [Coburn Wightman]
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+import logging
+
+import vxi11
+
+logger = logging.getLogger(__name__)
+
+class InstrumentDevice(object):
+    '''Base class for Instrument Devices.
+
+    All devices should inherit from this class overriding the methods
+    that make sense for the intended device. Since each method of this base class is
+    expected to respond rationally, a very simple device might override one method only.
+
+    See the "VXI-11 TCP/IP Instrument Protocol Specification" for details on
+    each device_xxx procedure.  The procedures are from the host perspective, ie
+    a device write is a write to the device and device read is a read from the device.
+    '''
+    def __init__(self, device_name):
+        self.device_name = device_name
+        self.srq_enabled = False
+        
+    def name(self):
+        return self.device_name
+    
+    def has_lock(self):
+        return False
+    
+    def device_abort(self):
+        error = vxi11.ERR_NO_ERROR
+        return error
+    
+    def device_write(self, opaque_data): # 11
+        "The device_write RPC is used to write data to the specified device"
+        error = vxi11.ERR_NO_ERROR
+
+        if False:
+            error = vxi11.ERR_IO_TIMEOUT
+        elif False:
+            error = vxi11.ERR_IO_ERROR
+        elif False:
+            error = vxi11.ERR_ABORT
+        else:
+            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+            
+        return error
+    
+    def device_read(self): #= 12
+        "The device_read RPC is used to read data from the device to the controller"
+        error = vxi11.ERR_NO_ERROR
+        opaque_data = ""
+        
+        if False:
+            error = vxi11.ERR_IO_TIMEOUT
+        elif False:
+            error = vxi11.ERR_IO_ERROR
+        elif False:
+            error = vxi11.ERR_ABORT
+        else:
+            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+            
+        result = error, opaque_data
+        return result
+
+    def device_readstb(self, link_id, flags, lock_timeout, io_timeout): # 13, generic params
+        "The device_readstb RPC is used to read a device's status byte."
+        error = vxi11.ERR_NO_ERROR
+        stb = 0
+
+        if False:
+            error = vxi11.ERR_IO_TIMEOUT
+        elif False:
+            error = vxi11.ERR_IO_ERROR
+        elif False:
+            error = vxi11.ERR_ABORT
+        else:
+            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+            
+        return error, stb
+
+    def device_trigger(self, link_id, flags, lock_timeout, io_timeout): # 14, generic params
+        "The device_trigger RPC is used to send a trigger to a device."
+        error = vxi11.ERR_NO_ERROR
+        
+        if False:
+            error = vxi11.ERR_IO_TIMEOUT
+        elif False:
+            error = vxi11.ERR_IO_ERROR
+        elif False:
+            error = vxi11.ERR_ABORT
+        else:
+            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+            
+        return error
+
+    def device_clear(self, link_id, flags, lock_timeout, io_timeout): # 15, generic params
+        "The device_clear RPC is used to send a device clear to a device"
+        error = vxi11.ERR_NO_ERROR
+        
+        if False:
+            error = vxi11.ERR_IO_TIMEOUT
+        elif False:
+            error = vxi11.ERR_IO_ERROR
+        elif False:
+            error = vxi11.ERR_ABORT
+        else:
+            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+            
+        return error
+
+    def device_remote(self, link_id, flags, lock_timeout, io_timeout): # 16, generic params
+        "The device_remote RPC is used to place a device in a remote state wherein all programmable local controls are disabled"
+        error = vxi11.ERR_NO_ERROR
+        
+        if False:
+            error = vxi11.ERR_IO_TIMEOUT
+        elif False:
+            error = vxi11.ERR_IO_ERROR
+        elif False:
+            error = vxi11.ERR_ABORT
+        else:
+            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+            
+        return error
+
+    def device_local(self, link_id, flags, lock_timeout, io_timeout): # 17, generic params
+        "The device_local RPC is used to place a device in a local state wherein all programmable local controls are enabled"
+        error = vxi11.ERR_NO_ERROR
+        
+        if False:
+            error = vxi11.ERR_IO_TIMEOUT
+        elif False:
+            error = vxi11.ERR_IO_ERROR
+        elif False:
+            error = vxi11.ERR_ABORT
+        else:
+            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+            
+        return error
+
+    def device_lock(self, ): # = 18
+        "The device_lock RPC is used to acquire a device's lock."
+        error = vxi11.ERR_NO_ERROR
+        
+        if False:
+            error = vxi11.ERR_IO_TIMEOUT
+        elif False:
+            error = vxi11.ERR_IO_ERROR
+        elif False:
+            error = vxi11.ERR_ABORT
+        else:
+            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+            
+        return error
+
+    def device_unlock(self): # = 19
+        "The device_unlock RPC is used to release locks acquired by the device_lock RPC."
+        error = vxi11.ERR_NO_ERROR
+        
+        if False:
+            error = vxi11.ERR_IO_TIMEOUT
+        elif False:
+            error = vxi11.ERR_IO_ERROR
+        elif False:
+            error = vxi11.ERR_ABORT
+        else:
+            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+            
+        return error
+
+    def device_enable_srq(self, enable, handle): # = 20
+        "The device_enable_srq RPC is used to enable or disable the sending of device_intr_srq RPCs by thenetwork instrument server"
+        error = vxi11.ERR_NO_ERROR
+        
+        if enable == True:
+            self.srq_handle = handle
+            self.srq_enabled = True
+        else:
+            self.srq_enabled = False
+            
+        return error
+
+    def device_docmd(self, flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in): # = 22
+        "The device_docmd RPC allows a variety of operations to be executed"
+        error = vxi11.ERR_NO_ERROR
+        
+        if False:
+            error = vxi11.ERR_IO_TIMEOUT
+        elif False:
+            error = vxi11.ERR_IO_ERROR
+        elif False:
+            error = vxi11.ERR_ABORT
+        else:
+            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+
+        opaque_data_out = ""
+        return error, opaque_data_out
+        
+class DefaultInstrumentDevice(InstrumentDevice):
+    '''The default device is the device registered with the name of "inst0".
+
+    The vxi-11 spec expects the default device to respond to the *IDN? command.
+    If a custom default_device_handler is not specified when the InstrumentServer is
+    initialized, this is the one that will be used.
+
+    Many instruments have only one device, the "inst0" device.  copy this class 
+    to YourDeviceHandler, use as boilerplate, and register it when the InstrumentServer
+    is initialized.
+    '''
+    def __init__(self, device_name):
+        super(DefaultInstrumentDevice, self).__init__(device_name)
+        #self.device_name = 'inst0'
+        self.idn = 'python-vxi11-server', 'bbb', '1234', '567'
+        self.result = 'empty'
+    
+    def device_write(self, opaque_data):
+        error = vxi11.ERR_NO_ERROR
+
+        if opaque_data == '*IDN?':
+            mfg, model, sn, fw = self.idn
+            self.result = "{} {} {} {}".format(mfg, model, sn, fw)
+        elif opaque_data == '*DEVICE_LIST?':
+            devs = self.device_list()
+            self.result = ''
+            isFirst = True
+            for dev in devs:
+                if isFirst:
+                    self.result = '{}'.format(dev)
+                    isFirst = False
+                else:
+                    self.result = '{}, {}'.format(self.result, dev)
+        else:
+            self.result = 'invalid'
+            
+        #logger.info("%s: device_write(): %s", self.name(), opaque_data)
+        return error
+    
+    def device_read(self):
+        error = vxi11.ERR_NO_ERROR
+        return error, self.result
