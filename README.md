@@ -2,7 +2,7 @@
 
 A VXI-11 Server implementation in Python that allows your BeagleBone Black or possibly Raspberry PI to apear as a VXI-11 device.
 
-VXI-11 is an instrument control protocol for accessing laboratory devices such as signal generators, power meters, and oscilloscope, over ethernet.
+VXI-11 is an instrument control protocol for accessing laboratory devices such as signal generators, power meters, and oscilloscopes over ethernet.
 
 python-vxi11-server makes your Beagle Bone Black or other linux/python enabled device work as a VXI-11 ethernet instrument.  Coupled with python-vxi11 on the client side, controlling your device over ethernet is seamless with your other VXI-11 devices.
 
@@ -31,25 +31,25 @@ Copy clock_client.py to the client folder/computer and edit the connect string t
 clock_client.py relies on [python-vxi11](https://github.com/python-ivi/python-vxi11) for interacting with the instrument server.  Install python-vxi11 or adapt to your client.
 
 ### Instrument Device development
-The InstrumentDevice class is the handler for each instrument device that resides in an instrument server and should be the template used for your instrument implementation.  The template alone should make a fully functioning instrument that does absolutely nothing, the right way.  You need only override the methods necessary to make the instrument respond to VXI-11 requests the way you intend.
+The InstrumentDevice class is the handler for each instrument device that resides in an instrument server and should be the template used for your instrument implementation.  The template alone should make a fully functioning instrument that does absolutely nothing, the right way.  Only override the methods necessary to make your instrument respond to VXI-11 requests the way you intend.
 
 See 'TCP/IP Instrument Protocol Specification' at [vxibus](http://www.vxibus.org/specifications.html) for help with the VXI-11 device_xxxx commands.
 
 For instance here is a very simple VXI-11 time server device that defines an InstrumentDevice handler and overrides or customizes just the device_read() function:
 
     import time
-    import vxi11_server as vxi11
+    import vxi11_server as Vxi11
 
     class TimeDevice(Vxi11.InstrumentDevice):
         def __init__(self, device_name):
             super(TimeDevice, self).__init__(device_name)
 
-    	def device_read(self):
+        def device_read(self):
             '''respond to the device_read rpc: refer to section (B.6.4)
-	       of the VXI-11 TCP/IP Instrument Protocol Specification'''
-	    error = Vxi11.Error.NO_ERROR
-	    result = time.strftime("%H:%M:%S +0000", time.gmtime())
-	    return error, result
+               of the VXI-11 TCP/IP Instrument Protocol Specification'''
+            error = Vxi11.Error.NO_ERROR
+            result = time.strftime("%H:%M:%S +0000", time.gmtime())
+            return error, result
 
     if __name__ == '__main__':
         # create a server, attach a device, and start a thread to listen for requests
