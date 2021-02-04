@@ -1,8 +1,9 @@
 import vxi11
 
-default_instr = vxi11.Instrument("TCPIP::192.168.2.101::INSTR")
+# with a default instrument, inst0 is implied.
+default_instr = vxi11.Instrument("TCPIP::127.0.0.1::INSTR")
+time_instr = vxi11.Instrument("TCPIP::127.0.0.1::inst1::INSTR")
 #time_instr = vxi11.Instrument("TCPIP::192.168.2.101::TIME::INSTR")
-time_instr = vxi11.Instrument("TCPIP::192.168.2.101::inst0::INSTR")
 
 print('The INSTR instrument:')
 

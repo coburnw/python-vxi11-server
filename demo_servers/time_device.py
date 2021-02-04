@@ -1,23 +1,24 @@
 import sys
-import os
 import signal
 import time
 import logging
 
-sys.path.append(os.path.abspath('..'))
+#import .vxi11_server as Vxi11
 import vxi11_server as Vxi11
 
 #
 # A simple instrument server.
 #
 # creates an InstrumentServer with the name INSTR
-# adds a device handler with the name TIME
+# adds a device handler with the name inst1
 # this instrument simply responds with the current time when queried by
 # a vxi11 client.
 #
-# Please note that 'TIME' may not be a legal vxi11 instrument name.
-# Try naming the device 'inst1' if it gives your client problems.
+# 'TIME' may not be a legal vxi11 instrument name, but seems to work well.
+# allowing some introspection on a device you havent used (and didnt document)
+# in some time.
 #
+
 def signal_handler(signal, frame):
     logger.info('Handling Ctrl+C!')
     instr_server.close()
@@ -25,7 +26,7 @@ def signal_handler(signal, frame):
                                         
 class TimeDevice(Vxi11.InstrumentDevice):
     def __init__(self, device_name):
-        super(TimeDevice, self).__init__(device_name)
+        super().__init__(device_name)
         
     def device_read(self):
         '''respond to the device_read rpc: refer to section (B.6.4) 
