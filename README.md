@@ -11,11 +11,12 @@ Since VXI-11 specifies how instrument control and data messages transfer over et
 Inspired by sonium0's [pyvxi11server](https://github.com/sonium0/pyvxi11server)
 
 ### Requirements
-  * developed and tested with Python2.7.9 on BeagleBone Black
+  * Ported to Python 3 and tested on the RPi
 
 ### Dependencies
 #### Server
-  * possibly rpcbind package
+  * rpcbind package
+  On a systemd os, use the command ```systemctl status rpcbind``` to verify run status.
 
 #### Client
   * [python-vxi11](https://github.com/python-ivi/python-vxi11) or some other VXI-11 client library that enables interaction with a VXI-11 Server.
@@ -42,7 +43,7 @@ For instance here is a very simple VXI-11 time server device that defines an Ins
 
     class TimeDevice(Vxi11.InstrumentDevice):
         def __init__(self, device_name):
-            super(TimeDevice, self).__init__(device_name)
+            super().__init__(device_name)
 
         def device_read(self):
             '''respond to the device_read rpc: refer to section (B.6.4)
@@ -66,7 +67,7 @@ To access the time server using python-vxi11 as the client library:
 
     import vxi11
 
-    instr = vxi11.Instrument("TCPIP::192.168.0.9::inst1::INSTR")
+    instr = vxi11.Instrument("TCPIP::127.0.0.1::inst1::INSTR")
 
     #read the current time value from the instruments TimeDevice
     instr.read()
@@ -81,5 +82,3 @@ To access the time server using python-vxi11 as the client library:
   * come up with a simple default locking strategy to place in the InstrumentDevice class
   * same for abort functionality
   * get rid of need for calling super.__init__()
-  * make any changes necessary for python 3
-  * try running on Raspberry Pi

@@ -27,7 +27,7 @@ import os
 import struct
 import logging
 
-import SocketServer
+import socketserver
 
 logger = logging.getLogger(__name__)
 
@@ -589,22 +589,22 @@ class BroadcastUDPClient(Client):
 # These are not symmetric to the Client classes
 # XXX No attempt is made to provide authorization hooks yet
 
-class RPCRequestHandler(SocketServer.BaseRequestHandler):
+class RPCRequestHandler(socketserver.BaseRequestHandler):
     def __init__(self, request, client_address, server):
         logger.info('strting new request handler')
         self.addpackers()
         self.request = request
         self.client_address = client_address
         self.server = server
-        SocketServer.BaseRequestHandler.__init__(self, request, client_address, server)
+        socketserver.BaseRequestHandler.__init__(self, request, client_address, server)
 
     def setup(self):
         #print 'starting request handler()'
-        return SocketServer.BaseRequestHandler.setup(self)
+        return socketserver.BaseRequestHandler.setup(self)
 
     def finish(self):
         #print 'finishing request handler'
-        return SocketServer.BaseRequestHandler.finish(self)
+        return socketserver.BaseRequestHandler.finish(self)
     
     def handle(self):
         
@@ -694,14 +694,14 @@ class RPCRequestHandler(SocketServer.BaseRequestHandler):
         self.packer = Packer()
         self.unpacker = Unpacker('')
 
-class TCPServer(SocketServer.TCPServer):
+class TCPServer(socketserver.TCPServer):
     def __init__(self, host, prog, vers, port, handler_class=RPCRequestHandler):
         # host should normally be '' for default interface
         # port should normally be 0 for random port
         self.registered = False
         
         server_address = (host, port)
-        SocketServer.TCPServer.__init__(self, server_address, handler_class)
+        socketserver.TCPServer.__init__(self, server_address, handler_class)
 
         host, port = self.server_address
         prot = IPPROTO_TCP
@@ -718,13 +718,13 @@ class TCPServer(SocketServer.TCPServer):
         try:
             #super(Vxi11Server, self).unregister()
             self.unregister()
-        except socket.error, msg:
+        except socket.error as msg:
             logger.error('Error: rpcbind -i not running? %s', msg)
-        except RuntimeError, msg:
+        except RuntimeError as msg:
             logger.error('RuntimeError: %s (ignored)', msg)
         try:
             self.register_pmap()
-        except RuntimeError, msg:
+        except RuntimeError as msg:
             logger.error("Error: rpcbind running in secure mode? %s", msg)
             raise
         return

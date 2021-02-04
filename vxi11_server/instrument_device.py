@@ -22,7 +22,7 @@
 
 import logging
 
-import vxi11
+from . import vxi11
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ class InstrumentDevice(object):
             
         return error
 
-    def device_lock(self, ): # = 18
+    def device_lock(self, flags, lock_timeout): # = 18
         "The device_lock RPC is used to acquire a device's lock."
         error = vxi11.ERR_NO_ERROR
         
@@ -239,7 +239,7 @@ class DefaultInstrumentDevice(InstrumentDevice):
 
         if opaque_data == '*IDN?':
             mfg, model, sn, fw = self.idn
-            self.result = "{} {} {} {}".format(mfg, model, sn, fw)
+            self.result = "{},{},{},{}".format(mfg, model, sn, fw)
         elif opaque_data == '*DEVICE_LIST?':
             devs = self.device_list()
             self.result = ''
@@ -253,7 +253,7 @@ class DefaultInstrumentDevice(InstrumentDevice):
         else:
             self.result = 'invalid'
             
-        #logger.info("%s: device_write(): %s", self.name(), opaque_data)
+        logger.info("%s: device_write(): %s %s", self.name(), opaque_data, self.result)
         return error
     
     def device_read(self):

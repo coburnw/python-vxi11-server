@@ -21,15 +21,15 @@
 # SOFTWARE.
 
 
-import rpc
-import vxi11
+from . import rpc
+from . import vxi11
 
 import os
 import logging
 import threading
-import SocketServer
+import socketserver
 
-import instrument_device as Instrument
+from . import instrument_device as Instrument
 
 MAX_RECEIVE_SIZE = 1024
 
@@ -101,7 +101,7 @@ class Registry(object):
         return self.registry.keys()
     
     
-class Vxi11Server(SocketServer.ThreadingMixIn, rpc.TCPServer):
+class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
     _next_device_index = 0
     _device_class_registry = {}
     _link_registry = {}
@@ -202,12 +202,14 @@ class Vxi11CoreHandler(Vxi11Handler):
         error = vxi11.ERR_NO_ERROR
         
         try:
+            logger.debug("Device name \"%s\"", device_name)
             self.link_id, self.device = self.server.link_create(device_name)
             if device_name == 'inst0':
                 self.device.device_list = self.server.device_list
             abort_port = self.server.abort_port
         except KeyError:
             error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
+            logger.debug("Create link failed")
         
         result = (error, self.link_id, abort_port, MAX_RECEIVE_SIZE)
         self.packer.pack_create_link_resp(result)
@@ -356,13 +358,13 @@ class Vxi11CoreHandler(Vxi11Handler):
         
         params = self.unpacker.unpack_device_lock_parms()
         logger.debug('DEVICE_LOCK %s', params)
-        link_id, flags, lock_timeout, io_timeout = params
+        link_id, flags, lock_timeout = params
 
         error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
-            error = self.device.device_lock(flags, lock_timeout, io_timeout)
+            error = self.device.device_lock(flags, lock_timeout)
             
         self.packer.pack_device_error(error)
         return
