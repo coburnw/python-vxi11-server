@@ -282,7 +282,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
-            error = self.device.device_readstb(link_id, flags, lock_timeout, io_timeout)
+            error = self.device.device_readstb( flags, lock_timeout, io_timeout)
             
         opaque_data = 0
         result = (error, opaque_data)

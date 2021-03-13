@@ -83,7 +83,7 @@ class InstrumentDevice(object):
         result = error, opaque_data
         return result
 
-    def device_readstb(self, link_id, flags, lock_timeout, io_timeout): # 13, generic params
+    def device_readstb(self, flags, lock_timeout, io_timeout): # 13, generic params
         "The device_readstb RPC is used to read a device's status byte."
         error = vxi11.ERR_NO_ERROR
         stb = 0
@@ -99,7 +99,7 @@ class InstrumentDevice(object):
             
         return error, stb
 
-    def device_trigger(self, link_id, flags, lock_timeout, io_timeout): # 14, generic params
+    def device_trigger(self, flags, lock_timeout, io_timeout): # 14, generic params
         "The device_trigger RPC is used to send a trigger to a device."
         error = vxi11.ERR_NO_ERROR
         
@@ -114,7 +114,7 @@ class InstrumentDevice(object):
             
         return error
 
-    def device_clear(self, link_id, flags, lock_timeout, io_timeout): # 15, generic params
+    def device_clear(self, flags, lock_timeout, io_timeout): # 15, generic params
         "The device_clear RPC is used to send a device clear to a device"
         error = vxi11.ERR_NO_ERROR
         
@@ -129,7 +129,7 @@ class InstrumentDevice(object):
             
         return error
 
-    def device_remote(self, link_id, flags, lock_timeout, io_timeout): # 16, generic params
+    def device_remote(self, flags, lock_timeout, io_timeout): # 16, generic params
         "The device_remote RPC is used to place a device in a remote state wherein all programmable local controls are disabled"
         error = vxi11.ERR_NO_ERROR
         
@@ -144,7 +144,7 @@ class InstrumentDevice(object):
             
         return error
 
-    def device_local(self, link_id, flags, lock_timeout, io_timeout): # 17, generic params
+    def device_local(self, flags, lock_timeout, io_timeout): # 17, generic params
         "The device_local RPC is used to place a device in a local state wherein all programmable local controls are enabled"
         error = vxi11.ERR_NO_ERROR
         
