@@ -86,7 +86,7 @@ class Unpacker(vxi11.Unpacker):
 
 class Registry(object):
     def __init__(self):
-        registry = {}
+        self._device_class_registry = {}
         return
     
     def add(self, key, item):
@@ -400,7 +400,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         "The destroy_intr_chan RPC is used to inform the network instrument server to close its interrupt channel"
         
         #params = self.unpacker.unpack_device_generic_parms()
-        logger.debug('DEVICE_DESTROY_INTR_CHAN %s', params)
+        logger.debug('DEVICE_DESTROY_INTR_CHAN') # %s', params)
 
         error = vxi11.ERR_NO_ERROR
         self.packer.pack_device_error(error)
