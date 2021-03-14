@@ -425,7 +425,7 @@ class Vxi11CoreHandler(Vxi11Handler):
     def handle_22(self):
         "The device_docmd RPC allows a variety of operations to be executed"
         
-        params = self.unpacker.unpack_device_generic_parms()
+        params = self.unpacker.unpack_device_docmd_parms()
         logger.debug('DEVICE_DOCMD %s', params)
         link_id, flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in = params
 
@@ -437,7 +437,7 @@ class Vxi11CoreHandler(Vxi11Handler):
             error, opaque_data_out = self.device.device_docmd(flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in)
             
         result = error, opaque_data_out
-        self.packer.pack_device_docmd(result)
+        self.packer.pack_device_docmd_resp(result)
         return
     
 
