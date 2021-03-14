@@ -591,7 +591,7 @@ class BroadcastUDPClient(Client):
 
 class RPCRequestHandler(socketserver.BaseRequestHandler):
     def __init__(self, request, client_address, server):
-        logger.info('strting new request handler')
+        logger.info('starting new request handler')
         self.addpackers()
         self.request = request
         self.client_address = client_address
