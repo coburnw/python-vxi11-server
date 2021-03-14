@@ -556,6 +556,7 @@ class Device(object):
     "VXI-11 device interface client"
     def __init__(self, host, name = None, client_id = None, term_char = None):
         "Create new VXI-11 device object"
+        self.link = None
 
         if host.upper().startswith('TCPIP') and '::' in host:
             res = parse_visa_resource_string(host)
@@ -582,7 +583,6 @@ class Device(object):
         self.lock_timeout = 10
         self.timeout = 10
         self.abort_port = 0
-        self.link = None
         self.max_recv_size = 0
         self.max_read_len = 128*1024*1024
         self.locked = False
