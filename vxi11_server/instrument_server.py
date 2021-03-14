@@ -260,7 +260,7 @@ class Vxi11CoreHandler(Vxi11Handler):
                 logger.debug("write to bridge device")
                 try:
                     bridge=self.server.link_get_device_instance(link_id)
-                    if bridge.device_name in self.device_name:
+                    if bridge.device_name in self.device.device_name:
                         error = bridge.device_write(opaque_data)
                 except KeyError:
                     error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
@@ -291,7 +291,7 @@ class Vxi11CoreHandler(Vxi11Handler):
                 logger.debug("write to bridge device")
                 try:
                     bridge=self.server.link_get_device_instance(link_id)
-                    if bridge.device_name in self.device_name:
+                    if bridge.device_name in self.device.device_name:
                         error, opaque_data = bridge.device_read()
                 except KeyError:
                     error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
@@ -339,7 +339,7 @@ class Vxi11CoreHandler(Vxi11Handler):
                 logger.debug("write to bridge device")
                 try:
                     bridge=self.server.link_get_device_instance(link_id)
-                    if bridge.device_name in self.device_name:
+                    if bridge.device_name in self.device.device_name:
                         error = bridge.device_trigger(flags, lock_timeout, io_timeout)
                 except KeyError:
                     error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
@@ -364,7 +364,7 @@ class Vxi11CoreHandler(Vxi11Handler):
                 logger.debug("write to bridge device")
                 try:
                     bridge=self.server.link_get_device_instance(link_id)
-                    if bridge.device_name in self.device_name:
+                    if bridge.device_name in self.device.device_name:
                         error = bridge.device_clear(flags, lock_timeout, io_timeout)
                 except KeyError:
                     error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
