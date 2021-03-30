@@ -1,6 +1,6 @@
 ## VXI-11 Server in Python
 
-A VXI-11 Server implementation in Python that allows your BeagleBone Black or possibly Raspberry PI to apear as a VXI-11 device.
+A VXI-11 Server implementation in Python that allows your BeagleBone Black or Raspberry PI appear as a VXI-11 device.
 
 VXI-11 is an instrument control protocol for accessing laboratory devices such as signal generators, power meters, and oscilloscopes over ethernet.
 
@@ -19,24 +19,26 @@ Inspired by sonium0's [pyvxi11server](https://github.com/sonium0/pyvxi11server)
   On a systemd os, use the command ```systemctl status rpcbind``` to verify run status.
 
 #### Client
-  * [python-vxi11](https://github.com/python-ivi/python-vxi11) or some other VXI-11 client library that enables interaction with a VXI-11 Server.
+  * [python-vxi11](https://github.com/python-ivi/python-vxi11) or some other VXI-11 client library that enables interaction with VXI-11 devices.
 
 The only client library tested against is python-vxi11.  Other clients may expose various server bugs or protocol misunderstandings by the developer.  Lets address them as they come.
 
 ### Getting started
+Unlike a client library, this 'package' is not installed.  Simply clone and copy into the source tree of your project.
+
 #### server side
-Git clone into the development folder of your instrument. Run the simple demo clock_device.py program to start an instrument server that responds to a read command with the current time.  Address any portmapper (rpcbind?) issues that may occur.
+Run the simple demo clock_device.py program to start an instrument server that responds to a read command with the current time.  Address any portmapper (rpcbind?) issues that may occur.
 
 #### Client side
 Copy clock_client.py to the client folder/computer and edit the connect string to reflect domain names or ip addresses of your network.  Run clock_client.py to extract the time from the server's clock_device.
-clock_client.py relies on [python-vxi11](https://github.com/python-ivi/python-vxi11) for interacting with the instrument server.  Install python-vxi11 or adapt to your client.
+clock_client.py relies on [python-vxi11](https://github.com/python-ivi/python-vxi11) for interacting with the instrument server.  Install python-vxi11 or adapt to your client library.
 
 ### Instrument Device development
-The InstrumentDevice class is the handler for each instrument device that resides in an instrument server and should be the template used for your instrument implementation.  The template alone should make a fully functioning instrument that does absolutely nothing, the right way.  Only override the methods necessary to make your instrument respond to VXI-11 requests the way you intend.
+The InstrumentDevice base class is the handler for each instrument device that resides in an instrument server and should be the base class for your instrument implementation.  The base class alone should make a fully functioning instrument that does absolutely nothing, the right way.  Only override the methods necessary to make your instrument respond to the VXI-11 requests that are important for your instrument.
 
 See 'TCP/IP Instrument Protocol Specification' at [vxibus](http://www.vxibus.org/specifications.html) for help with the VXI-11 device_xxxx commands.
 
-For instance here is a very simple VXI-11 time server device that defines an InstrumentDevice handler and overrides or customizes just the device_read() function:
+For instance here is a very simple VXI-11 time server device that defines an InstrumentDevice handler and overrides just the device_read() function of the base class:
 
     import time
     import vxi11_server as Vxi11
@@ -76,9 +78,12 @@ To access the time server using python-vxi11 as the client library:
 ### Notes
   * be aware that add_device_handler requires a class definition not a class instance as indicated by the lack of parenthesis.  The server instantiates a new instance of your device handler class with each connect request.
   * Write a [python-ivi](https://github.com/python-ivi/python-ivi) driver for your new device
-  * no attempt to harden the code has been made.  use at own risk.
+  * no attempt to harden or benchmark the code has been made.  use at own risk.
 
+### Examples Projects
+  * [GPIB Bridge](https://git.loetlabor-jena.de/thasti/tcpip2instr)
+  
 ### Todo
-  * come up with a simple default locking strategy to place in the InstrumentDevice class
+  * come up with a simple default locking strategy to place in the InstrumentDevice base class
   * same for abort functionality
   * get rid of need for calling super.__init__()
