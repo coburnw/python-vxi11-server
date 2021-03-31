@@ -417,7 +417,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
-            error = vxi11.ERR_NO_ERROR
+            error = self.device.device_enable_srq(enable,handle)
 
         self.packer.pack_device_error(error)
         return
