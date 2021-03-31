@@ -98,7 +98,7 @@ class Registry(object):
         return
     
     def list(self):
-        return self.registry.keys()
+        return self._device_class_registry.keys()
     
     
 class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
