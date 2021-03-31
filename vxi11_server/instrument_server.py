@@ -388,7 +388,7 @@ class Vxi11CoreHandler(Vxi11Handler):
     def handle_25(self):
         "The create_intr_chan RPC is used to inform the network instrument server to establish an interrupt channel"
         
-        params = self.unpacker.unpack_device_create_intr_chan_parms()
+        params = self.unpacker.unpack_device_remote_func_parms()
         logger.debug('DEVICE_CREATE_INTR_CHAN %s', params)
         host_addr, host_port, prog_num, prog_vers, prog_family = params
 
@@ -399,8 +399,8 @@ class Vxi11CoreHandler(Vxi11Handler):
     def handle_26(self):
         "The destroy_intr_chan RPC is used to inform the network instrument server to close its interrupt channel"
         
-        #params = self.unpacker.unpack_device_generic_parms()
-        logger.debug('DEVICE_DESTROY_INTR_CHAN %s', params)
+        # no params (void) for this function according to vxi11-spec B.6.13 V1.0 !
+        logger.debug('DEVICE_DESTROY_INTR_CHAN')
 
         error = vxi11.ERR_NO_ERROR
         self.packer.pack_device_error(error)
