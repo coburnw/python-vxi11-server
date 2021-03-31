@@ -260,7 +260,7 @@ class Vxi11CoreHandler(Vxi11Handler):
                 logger.debug("write to bridge device")
                 try:
                     bridge=self.server.link_get_device_instance(link_id)
-                    if bridge.device_name in self.device.device_name:
+                    if self.device.device_name in  bridge.device_name:
                         error = bridge.device_write(opaque_data)
                 except KeyError:
                     error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
@@ -288,7 +288,7 @@ class Vxi11CoreHandler(Vxi11Handler):
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
             #check if this is the link id for the bridge device and maybe route it there
             if self.primary is not None:
-                logger.debug("write to bridge device")
+                logger.debug("read from bridge device")
                 try:
                     bridge=self.server.link_get_device_instance(link_id)
                     if bridge.device_name in self.device.device_name:
@@ -336,7 +336,7 @@ class Vxi11CoreHandler(Vxi11Handler):
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
             #check if this is the link id for the bridge device and maybe route it there
             if self.primary is not None:
-                logger.debug("write to bridge device")
+                logger.debug("Trigger to bridge device")
                 try:
                     bridge=self.server.link_get_device_instance(link_id)
                     if bridge.device_name in self.device.device_name:
@@ -361,7 +361,7 @@ class Vxi11CoreHandler(Vxi11Handler):
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
             #check if this is the link id for the bridge device and maybe route it there
             if self.primary is not None:
-                logger.debug("write to bridge device")
+                logger.debug("device_clear to bridge device")
                 try:
                     bridge=self.server.link_get_device_instance(link_id)
                     if bridge.device_name in self.device.device_name:
