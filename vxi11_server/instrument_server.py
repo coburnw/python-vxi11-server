@@ -455,6 +455,12 @@ class Vxi11CoreHandler(Vxi11Handler):
         host_addr, host_port, prog_num, prog_vers, prog_family = params
 
         error = vxi11.ERR_CHANNEL_NOT_ESTABLISHED
+
+        # xxx
+        # establish a rpc connection to this program
+        # or just pretend to
+        error = vxi11.ERR_NO_ERROR
+
         self.packer.pack_device_error(error)
         return
     
