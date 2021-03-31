@@ -484,6 +484,19 @@ class Vxi11CoreHandler(Vxi11Handler):
         error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+            #check if this is the link id for the bridge device and maybe route it there
+            if self.primary is not None:
+                logger.debug("device_enable_srq to bridge device")
+                try:
+                    bridge=self.server.link_get_device_instance(link_id)
+                    logger.debug("bridge enable_srq 1")
+                    if  self.device.device_name in bridge.device_name:
+                        error = bridge.device_enable_srq(enable,handle)
+                    else:
+                        logger.debug("bridge enable_srq invalid bridge dev name %s  %s",  bridge.device_name, self.device.device_name)
+                except KeyError:
+                    error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
+
         else:
             error = self.device.device_enable_srq(enable,handle)
 
