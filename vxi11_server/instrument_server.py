@@ -291,7 +291,7 @@ class Vxi11CoreHandler(Vxi11Handler):
                 logger.debug("read from bridge device")
                 try:
                     bridge=self.server.link_get_device_instance(link_id)
-                    if bridge.device_name in self.device.device_name:
+                    if self.device.device_name in  bridge.device_name:
                         error, opaque_data = bridge.device_read()
                 except KeyError:
                     error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
@@ -364,8 +364,11 @@ class Vxi11CoreHandler(Vxi11Handler):
                 logger.debug("device_clear to bridge device")
                 try:
                     bridge=self.server.link_get_device_instance(link_id)
-                    if bridge.device_name in self.device.device_name:
+                    logger.debug("bridge dev-clear 1")
+                    if  self.device.device_name in bridge.device_name:
                         error = bridge.device_clear(flags, lock_timeout, io_timeout)
+                    else:
+                        logger.debug("bridge dev-clear invalid bridge dev name %s %s",  bridge.device_name, self.device.device_name)
                 except KeyError:
                     error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
         else:
