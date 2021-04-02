@@ -260,7 +260,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_READ %s', params)
         link_id, request_size, io_timeout, lock_timeout, flags, termChar = params
 
-        opaque_data = ''
+        opaque_data = b''
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
@@ -430,7 +430,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         link_id, flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in = params
 
         error = vxi11.ERR_NO_ERROR
-        opaque_data_out = ""
+        opaque_data_out = b""
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
