@@ -33,7 +33,7 @@ class TimeDevice(Vxi11.InstrumentDevice):
         of the VXI-11 TCP/IP Instrument Protocol Specification''' 
         error = Vxi11.Error.NO_ERROR
         result = time.strftime("%H:%M:%S +0000", time.gmtime())
-        return error, result
+        return error, result.encode("ascii") # opaque_data is a bystes array, so encode correctly!
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)

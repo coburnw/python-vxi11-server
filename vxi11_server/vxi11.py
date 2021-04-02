@@ -195,7 +195,7 @@ class Packer(rpc.Packer):
         self.pack_int(id)
         self.pack_bool(lock_device)
         self.pack_uint(lock_timeout)
-        self.pack_string(device.encode('ascii', 'ignore'))
+        self.pack_string(device)
 
     def pack_device_write_parms(self, params):
         link, timeout, lock_timeout, flags, data = params
@@ -203,7 +203,7 @@ class Packer(rpc.Packer):
         self.pack_uint(timeout)
         self.pack_uint(lock_timeout)
         self.pack_int(flags)
-        self.pack_opaque(data.encode('ascii', 'ignore'))
+        self.pack_opaque(data)
 
     def pack_device_read_parms(self, params):
         link, request_size, timeout, lock_timeout, flags, term_char = params
@@ -235,7 +235,7 @@ class Packer(rpc.Packer):
         self.pack_bool(enable)
         if len(handle) > 40:
             raise Vxi11Exception("array length too long")
-        self.pack_opaque(handle.encode('ascii', 'ignore'))
+        self.pack_opaque(handle)
 
     def pack_device_lock_parms(self, params):
         link, flags, lock_timeout = params
@@ -252,7 +252,7 @@ class Packer(rpc.Packer):
         self.pack_int(cmd)
         self.pack_bool(network_order)
         self.pack_int(datasize)
-        self.pack_opaque(data_in.encode('ascii', 'ignore'))
+        self.pack_opaque(data_in)
 
     def pack_device_error(self, error):
         self.pack_int(error)
@@ -280,7 +280,7 @@ class Packer(rpc.Packer):
         self.pack_device_error(error)
         #self.pack_int(error)
         self.pack_int(reason)
-        self.pack_opaque(data.encode('ascii', 'ignore'))
+        self.pack_opaque(data)
 
     def pack_device_read_stb_resp(self, params):
         error, stb = params
@@ -292,7 +292,7 @@ class Packer(rpc.Packer):
         error, data_out = params
         self.pack_device_error(error)
         #self.pack_int(error)
-        self.pack_opaque(data_out.encode('ascii', 'ignore'))
+        self.pack_opaque(data_out)
 
 class Unpacker(rpc.Unpacker):
     def unpack_device_link(self):
@@ -310,7 +310,7 @@ class Unpacker(rpc.Unpacker):
         timeout = self.unpack_uint()
         lock_timeout = self.unpack_uint()
         flags = self.unpack_int()
-        data = self.unpack_opaque().decode("ascii", "ignore")
+        data = self.unpack_opaque()
         return link, timeout, lock_timeout, flags, data
 
     def unpack_device_read_parms(self):
@@ -340,7 +340,7 @@ class Unpacker(rpc.Unpacker):
     def unpack_device_enable_srq_parms(self):
         link = self.unpack_int()
         enable = self.unpack_bool()
-        handle = self.unpack_opaque().decode("ascii", "ignore")
+        handle = self.unpack_opaque()
         return link, enable, handle
 
     def unpack_device_lock_parms(self):
@@ -357,14 +357,14 @@ class Unpacker(rpc.Unpacker):
         cmd = self.unpack_int()
         network_order = self.unpack_bool()
         datasize = self.unpack_int()
-        data_in = self.unpack_opaque().decode("ascii", "ignore")
+        data_in = self.unpack_opaque()
         return link, flags, timeout, lock_timeout, cmd, network_order, datasize, data_in
 
     def unpack_device_error(self):
         return self.unpack_int()
 
     def unpack_device_srq_params(self):
-        handle = self.unpack_opaque().decode("ascii", "ignore")
+        handle = self.unpack_opaque()
         return handle
 
     def unpack_create_link_resp(self):
@@ -382,7 +382,7 @@ class Unpacker(rpc.Unpacker):
     def unpack_device_read_resp(self):
         error = self.unpack_int()
         reason = self.unpack_int()
-        data = self.unpack_opaque().decode("ascii", "ignore")
+        data = self.unpack_opaque()
         return error, reason, data
 
     def unpack_device_read_stb_resp(self):
@@ -392,7 +392,7 @@ class Unpacker(rpc.Unpacker):
 
     def unpack_device_docmd_resp(self):
         error = self.unpack_int()
-        data_out = self.unpack_opaque().decode("ascii", "ignore")
+        data_out = self.unpack_opaque()
         return error, data_out
 
     def done(self):
