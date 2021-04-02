@@ -311,16 +311,16 @@ class Vxi11CoreHandler(Vxi11Handler):
         link_id, flags, lock_timeout, io_timeout = params
 
         error = vxi11.ERR_NO_ERROR
+        stb=0
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
             #check if this is the link id for the bridge device and issue error according to spec
             if self.primary is not None:
                 error=vxi11.ERR_OPERATION_NOT_SUPPORTED
         else:
-            error = self.device.device_readstb( flags, lock_timeout, io_timeout)
+            error,stb = self.device.device_readstb( flags, lock_timeout, io_timeout)
             
-        opaque_data = 0
-        result = (error, opaque_data)
+        result = (error, stb)
         self.packer.pack_device_read_stb_resp(result)
         return
     
