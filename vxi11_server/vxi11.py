@@ -234,7 +234,7 @@ class Packer(rpc.Packer):
         self.pack_int(link)
         self.pack_bool(enable)
         if len(handle) > 40:
-            raise Vxi11Exception("array length too long")
+            raise Vxi11Exception(ERR_PARAMETER_ERROR, "array length too long")
         self.pack_opaque(handle)
 
     def pack_device_lock_parms(self, params):
@@ -832,8 +832,6 @@ class Device(object):
         "Send unlock command"
         if self.link is None:
             self.open()
-
-        flags = 0
 
         error = self.client.device_unlock(self.link)
 
