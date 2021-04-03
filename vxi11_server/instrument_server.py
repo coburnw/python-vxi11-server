@@ -24,7 +24,7 @@
 from . import rpc
 from . import vxi11
 
-import os
+#import os
 import logging
 import threading
 import socketserver
@@ -137,8 +137,7 @@ class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
         except KeyError :
             logger.debug('AbortServer: ABORT_LINK_ID %s. link_id does not exist.', link_id)
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
-
-        return
+        return error
 
     # should the device registry be moved to the core server?
     def device_register(self, name, device_class):
@@ -173,9 +172,9 @@ class Vxi11AbortHandler(Vxi11Handler):
     def handle_1(self):
         params = self.unpacker.unpack_device_link()
         link_id = params
-        self.server.link_abort(link_id)
+        error=self.server.link_abort(link_id)
 
-        self.packer.pack_device_error(0)
+        self.packer.pack_device_error(error)
         return
     
 class Vxi11CoreServer(Vxi11Server):
