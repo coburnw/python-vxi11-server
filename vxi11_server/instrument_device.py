@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import logging
+import ipaddress
 
 from . import vxi11
 
@@ -39,10 +40,47 @@ class InstrumentDevice(object):
     '''
     def __init__(self, device_name):
         self.device_name = device_name
+        self.intr_client = None
         self.srq_enabled = False
-        
+        self.srq_handle = None
+
+    def create_intr_chan(self,host_addr, host_port, prog_num, prog_vers, prog_family):
+
+        if self.intr_client is not None:
+            return vxi11.ERR_CHANNEL_ALREADY_ESTABLISHED
+
+        if prog_num != vxi11.DEVICE_INTR_PROG or prog_vers!= vxi11.DEVICE_INTR_VERS or prog_family != vxi11.DEVICE_TCP:
+            return  vxi11.ERR_OPERATION_NOT_SUPPORTED
+
+        try:
+            self.intr_client=vxi11.TCPIntrClient(str(ipaddress.IPv4Address(host_addr)), host_port)
+            #self.intr_client.connect() # done in __init__
+            return vxi11.ERR_NO_ERROR
+        except Exception as e:
+            logger.info("exception in create_intr_chan: %s",str(e))
+            return vxi11.ERR_CHANNEL_NOT_ESTABLISHED
+
+    def destroy_intr_chan(self):
+        error = vxi11.ERR_CHANNEL_NOT_ESTABLISHED
+        try:
+            if self.intr_client is not None:
+                self.intr_client.close()
+                error=vxi11.ERR_NO_ERROR
+        finally:
+            self.intr_client=None
+        return  error
+
+    def signal_SRQ(self):
+        if self.srq_enabled and self.intr_client is not None:
+            self.intr_client.signal_intr_srq(self.srq_handle)
+        else:
+            raise vxi11.Vxi11Exception(vxi11.ERR_CHANNEL_NOT_ESTABLISHED,
+                                       "channel not enabled to signal SRQ")
+    
     def name(self):
         return self.device_name
+
+    # functions to overwrite when sublcassing start here
     
     def has_lock(self):
         return False

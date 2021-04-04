@@ -30,6 +30,12 @@ import random
 import re
 import struct
 import time
+import threading
+import ipaddress
+import socketserver
+import logging
+
+logger = logging.getLogger(__name__)
 
 # VXI-11 RPC constants
 
@@ -255,7 +261,7 @@ class Packer(rpc.Packer):
     def pack_device_error(self, error):
         self.pack_int(error)
 
-    def pack_device_srq_parms(self, params):
+    def pack_device_intr_srq_parms(self, params):
         handle = params
         self.pack_opaque(handle)
 
@@ -361,7 +367,7 @@ class Unpacker(rpc.Unpacker):
     def unpack_device_error(self):
         return self.unpack_int()
 
-    def unpack_device_srq_params(self):
+    def unpack_device_intr_srq_params(self):
         handle = self.unpack_opaque()
         return handle
 
@@ -503,7 +509,72 @@ class AbortClient(rpc.TCPClient):
                 self.packer.pack_device_link,
                 self.unpacker.unpack_device_error)
 
+class TCPIntrClient(rpc.TCPClient):
+    def __init__(self, host, port ):
+        self.packer = Packer()
+        self.unpacker = Unpacker('')
+        rpc.TCPClient.__init__(self, host, DEVICE_INTR_PROG, DEVICE_INTR_VERS, port)
 
+    def signal_intr_srq(self, handle):
+        return self.make_call(DEVICE_INTR_SRQ, handle,
+                self.packer.pack_device_intr_srq_parms, None )
+    
+class IntrHandler(rpc.RPCRequestHandler):
+    
+    def addpackers(self):
+        # amend rpc packers with our vxi11 packers
+        self.packer = Packer()
+        self.unpacker = Unpacker('')
+
+    def handle_30(self):
+        # SRQ
+        params = self.unpacker.unpack_device_intr_srq_params()
+        handle = params
+
+        # find the device to send SRQ to via handle and registry
+        self.server.SRQ_CLASS_REGISTRY[handle].srq_callback()
+        # nothing to pack but void
+        self.turn_around()
+        
+class IntrServer(socketserver.ThreadingMixIn, rpc.TCPServer):
+    INTR_SERVER=None
+    SRQ_CLASS_REGISTRY={}
+
+    @classmethod
+    def getServer(cls):
+        # create global interrupt server instance if it does not exist
+        if cls.INTR_SERVER is None:
+            # create a new server task and register our handler
+            serv=cls.INTR_SERVER=IntrServer('',0) # default addr, new random port
+            intrThread = threading.Thread(target=serv.serve_forever)
+            intrThread.setDaemon(True) # don't hang on exit
+            intrThread.start()
+            logger.info('IntrServer started...')
+        else:
+            serv=cls.INTR_SERVER
+        return serv
+
+    @classmethod
+    def stopServer(cls):
+        cls.INTR_SERVER.shutdown()
+        cls.INTR_SERVER.server_close()
+
+    @classmethod
+    def register_dev(cls,handle,device):
+        cls.SRQ_CLASS_REGISTRY[handle]=device
+
+    @classmethod
+    def unregister_dev(cls, handle):
+        del cls.SRQ_CLASS_REGISTRY[handle]
+
+    @classmethod
+    def has_dev(cls,handle):
+        return handle in cls.SRQ_CLASS_REGISTRY
+
+    def __init__(self, host, port ):
+        rpc.TCPServer.__init__(self, host, DEVICE_INTR_PROG, DEVICE_INTR_VERS, port, IntrHandler)
+
+        
 def list_devices(ip=None, timeout=1):
     "Detect VXI-11 devices on network"
 
@@ -575,6 +646,7 @@ class Device(object):
 
         self.client = None
         self.abort_client = None
+        self.srq_callback=None
 
         self.host = host
         self.name = name
@@ -642,6 +714,8 @@ class Device(object):
         if self.link is None:
             return
 
+        self.disable_srq_handler()
+        
         self.client.destroy_link(self.link)
         self.client.close()
         self.link = None
@@ -838,6 +912,54 @@ class Device(object):
 
         self.locked = False
 
+    def enable_srq_handler(self):
+        " enable srq handling for this device"
+
+        logger.info("setting up srq handler")
+        if self.link is None:
+            raise Vxi11Exception(ERR_DEVICE_NOT_ACCESSIBLE,"link not open")
+
+        serv=IntrServer.getServer()
+
+        # this is tricky, we need the device to connect
+        # to the ip address of our network-interface that is communicating with the device
+
+        # so just ask the open socket to the device for our own ip address.
+        intr_host, _  = self.client.sock.getsockname()
+        # and use the port from our intrserver instance
+        _, intr_port = serv.server_address
+        logger.info("intr handler connect to %s, %i"% (intr_host,intr_port))
+        
+        # tell the device to enable interrupt services
+        error=self.client.create_intr_chan(int(ipaddress.IPv4Address(intr_host)),
+                                           intr_port, DEVICE_INTR_PROG,DEVICE_INTR_VERS,DEVICE_TCP)
+        if error:
+            raise Vxi11Exception(error, 'device can not create interrupt channel')
+        
+        # enable SRQ on the device
+        handle=struct.pack("!L",self.client_id)
+        IntrServer.register_dev(handle,self)
+        error=self.client.device_enable_srq(self.link,True,handle)
+        if error:
+            raise Vxi11Exception(error, 'device can not enable SRQ handling')
+
+    def disable_srq_handler(self):
+        # disable srq handling and remove old handler
+        handle=struct.pack("!L",self.client_id)
+        if IntrServer.has_dev(handle):
+            self.client.device_enable_srq(self.link,False,handle)
+            IntrServer.unregister_dev(handle)
+            self.client.destroy_intr_chan()
+            
+    def on_srq(self,callback):
+        # start the intr channel for srq, the instrument should connect,
+        # and if the handler runs it sould trigger our callback somehow
+        if callback is None:
+            self.disable_srq_handler()
+            self.srq_callback=None
+        else:
+            self.enable_srq_handler()
+            self.srq_callback=callback
 
 class InterfaceDevice(Device):
     "VXI-11 IEEE 488.1 interface device interface client"
