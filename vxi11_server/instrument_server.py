@@ -391,7 +391,8 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_CREATE_INTR_CHAN %s', params)
         host_addr, host_port, prog_num, prog_vers, prog_family = params
 
-        error = vxi11.ERR_CHANNEL_NOT_ESTABLISHED
+        error = self.device.create_intr_chan(host_addr, host_port, prog_num, prog_vers, prog_family)
+
         self.packer.pack_device_error(error)
         return
     
@@ -401,7 +402,8 @@ class Vxi11CoreHandler(Vxi11Handler):
         # no params (void) for this function according to vxi11-spec B.6.13 V1.0 !
         logger.debug('DEVICE_DESTROY_INTR_CHAN')
 
-        error = vxi11.ERR_NO_ERROR
+        error = self.device.destroy_intr_chan()
+
         self.packer.pack_device_error(error)
         return
         
