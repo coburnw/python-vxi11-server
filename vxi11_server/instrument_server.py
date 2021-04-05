@@ -24,7 +24,7 @@
 from . import rpc
 from . import vxi11
 
-import os
+#import os
 import logging
 import threading
 import socketserver
@@ -98,7 +98,7 @@ class Registry(object):
         return
     
     def list(self):
-        return self.registry.keys()
+        return self._device_class_registry.keys()
     
     
 class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
@@ -137,8 +137,7 @@ class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
         except KeyError :
             logger.debug('AbortServer: ABORT_LINK_ID %s. link_id does not exist.', link_id)
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
-
-        return
+        return error
 
     # should the device registry be moved to the core server?
     def device_register(self, name, device_class):
@@ -173,9 +172,9 @@ class Vxi11AbortHandler(Vxi11Handler):
     def handle_1(self):
         params = self.unpacker.unpack_device_link()
         link_id = params
-        self.server.link_abort(link_id)
+        error=self.server.link_abort(link_id)
 
-        self.packer.pack_device_error(0)
+        self.packer.pack_device_error(error)
         return
     
 class Vxi11CoreServer(Vxi11Server):
@@ -260,7 +259,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_READ %s', params)
         link_id, request_size, io_timeout, lock_timeout, flags, termChar = params
 
-        opaque_data = ''
+        opaque_data = b''
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
@@ -279,13 +278,13 @@ class Vxi11CoreHandler(Vxi11Handler):
         link_id, flags, lock_timeout, io_timeout = params
 
         error = vxi11.ERR_NO_ERROR
+        stb=0
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
-            error = self.device.device_readstb( flags, lock_timeout, io_timeout)
+            error,stb = self.device.device_readstb( flags, lock_timeout, io_timeout)
             
-        opaque_data = 0
-        result = (error, opaque_data)
+        result = (error, stb)
         self.packer.pack_device_read_stb_resp(result)
         return
     
@@ -388,7 +387,7 @@ class Vxi11CoreHandler(Vxi11Handler):
     def handle_25(self):
         "The create_intr_chan RPC is used to inform the network instrument server to establish an interrupt channel"
         
-        params = self.unpacker.unpack_device_create_intr_chan_parms()
+        params = self.unpacker.unpack_device_remote_func_parms()
         logger.debug('DEVICE_CREATE_INTR_CHAN %s', params)
         host_addr, host_port, prog_num, prog_vers, prog_family = params
 
@@ -399,8 +398,8 @@ class Vxi11CoreHandler(Vxi11Handler):
     def handle_26(self):
         "The destroy_intr_chan RPC is used to inform the network instrument server to close its interrupt channel"
         
-        #params = self.unpacker.unpack_device_generic_parms()
-        logger.debug('DEVICE_DESTROY_INTR_CHAN %s', params)
+        # no params (void) for this function according to vxi11-spec B.6.13 V1.0 !
+        logger.debug('DEVICE_DESTROY_INTR_CHAN')
 
         error = vxi11.ERR_NO_ERROR
         self.packer.pack_device_error(error)
@@ -417,7 +416,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
-            error = vxi11.ERR_NO_ERROR
+            error = self.device.device_enable_srq(enable,handle)
 
         self.packer.pack_device_error(error)
         return
@@ -430,7 +429,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         link_id, flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in = params
 
         error = vxi11.ERR_NO_ERROR
-        opaque_data_out = ""
+        opaque_data_out = b""
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:

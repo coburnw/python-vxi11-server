@@ -69,7 +69,7 @@ class InstrumentDevice(object):
     def device_read(self): #= 12
         "The device_read RPC is used to read data from the device to the controller"
         error = vxi11.ERR_NO_ERROR
-        opaque_data = ""
+        opaque_data = b""
         
         if False:
             error = vxi11.ERR_IO_TIMEOUT
@@ -214,7 +214,7 @@ class InstrumentDevice(object):
         else:
             error = vxi11.ERR_OPERATION_NOT_SUPPORTED
 
-        opaque_data_out = ""
+        opaque_data_out = b""
         return error, opaque_data_out
         
 class DefaultInstrumentDevice(InstrumentDevice):
@@ -237,10 +237,13 @@ class DefaultInstrumentDevice(InstrumentDevice):
     def device_write(self, opaque_data):
         error = vxi11.ERR_NO_ERROR
 
-        if opaque_data == '*IDN?':
+        #opaque_data is a bytes array, so decode it correclty
+        cmd=opaque_data.decode("ascii")
+        
+        if cmd == '*IDN?':
             mfg, model, sn, fw = self.idn
             self.result = "{},{},{},{}".format(mfg, model, sn, fw)
-        elif opaque_data == '*DEVICE_LIST?':
+        elif cmd  == '*DEVICE_LIST?':
             devs = self.device_list()
             self.result = ''
             isFirst = True
@@ -253,9 +256,10 @@ class DefaultInstrumentDevice(InstrumentDevice):
         else:
             self.result = 'invalid'
             
-        logger.info("%s: device_write(): %s %s", self.name(), opaque_data, self.result)
+        logger.info("%s: device_write(): %s %s", self.name(), cmd , self.result)
         return error
     
     def device_read(self):
         error = vxi11.ERR_NO_ERROR
-        return error, self.result
+        #device-read returns opaque_data so encode it correclty
+        return error, self.result.encode("ascii")
