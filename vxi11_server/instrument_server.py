@@ -433,15 +433,15 @@ class Vxi11CoreHandler(Vxi11Handler):
     def handle_19(self):
         "The device_unlock RPC is used to release locks acquired by the device_lock RPC"
         
-        params = self.unpacker.unpack_device_generic_parms()
+        params = self.unpacker.unpack_device_link()
         logger.debug('DEVICE_UNLOCK %s', params)
-        link_id, flags, lock_timeout, io_timeout = params
+        link_id = params
 
         error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
-            error = self.device.device_unlock(flags, lock_timeout, io_timeout)
+            error = self.device.device_unlock()
             
         self.turn_around()
         self.packer.pack_device_error(error)
