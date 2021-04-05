@@ -399,10 +399,10 @@ class Vxi11CoreHandler(Vxi11Handler):
     def handle_26(self):
         "The destroy_intr_chan RPC is used to inform the network instrument server to close its interrupt channel"
         
-        logger.debug('DEVICE_DESTROY_INTR_CHAN')
+        #params = self.unpacker.unpack_device_generic_parms()
+        logger.debug('DEVICE_DESTROY_INTR_CHAN %s', params)
 
-        #error = vxi11.ERR_NO_ERROR
-        error = vxi11.ERR_CHANNEL_NOT_ESTABLISHED
+        error = vxi11.ERR_NO_ERROR
         self.packer.pack_device_error(error)
         return
         
