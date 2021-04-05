@@ -16,6 +16,7 @@ Inspired by sonium0's [pyvxi11server](https://github.com/sonium0/pyvxi11server)
 ### Dependencies
 #### Server
   * rpcbind package
+  
   On a systemd os, use the command ```systemctl status rpcbind``` to verify run status.
 
 #### Client
@@ -52,7 +53,9 @@ For instance here is a very simple VXI-11 time server device that defines an Ins
                of the VXI-11 TCP/IP Instrument Protocol Specification'''
             error = Vxi11.Error.NO_ERROR
             result = time.strftime("%H:%M:%S +0000", time.gmtime())
-            return error, result
+			# In this case, our result is an ascii string. 
+			# encode and return the result as binary (opaque) data for transfer to host
+            return error, result.encode('ascii')
 
     if __name__ == '__main__':
         # create a server, attach a device, and start a thread to listen for requests
@@ -81,9 +84,9 @@ To access the time server using python-vxi11 as the client library:
   * no attempt to harden or benchmark the code has been made.  use at own risk.
 
 ### Examples Projects
-  * [GPIB Bridge](https://git.loetlabor-jena.de/thasti/tcpip2instr)
+  * thasti's [GPIB Bridge](https://git.loetlabor-jena.de/thasti/tcpip2instr) project
   
 ### Todo
   * come up with a simple default locking strategy to place in the InstrumentDevice base class
   * same for abort functionality
-  * get rid of need for calling super.__init__()
+  * get rid of need for calling super.__init__(). Perhaps add a device_init() function?
