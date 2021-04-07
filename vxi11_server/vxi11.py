@@ -960,8 +960,9 @@ class Device(object):
             self.disable_srq_handler()
             self.srq_callback=None
         else:
-            self.enable_srq_handler()
             self.srq_callback=callback
+            #install callback before activating handler, as srq may already be pending!
+            self.enable_srq_handler()
 
 class InterfaceDevice(Device):
     "VXI-11 IEEE 488.1 interface device interface client"
