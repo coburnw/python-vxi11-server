@@ -229,6 +229,10 @@ class Vxi11CoreHandler(Vxi11Handler):
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
             logger.debug('DESTROY_LINK %s to %s', link_id, self.device.device_name)
+            # first disable interrupt handling of the device if it was on
+            self.device.device_enable_srq(False,None)
+            self.device.destroy_intr_chan()
+            # now remove link and therefore delete everything.
             self.server.link_delete(self.link_id)
             error = vxi11.ERR_NO_ERROR
             
