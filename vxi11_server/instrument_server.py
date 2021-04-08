@@ -114,10 +114,10 @@ class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
     # move device_class_registry, link_create/delete to CoreHandler?
     def link_create(self, device_name):        
         # create and initialize an instance of the device handler registered to device_name
-        device_instance = self._device_class_registry[device_name](device_name)
+        link_id = self.lid_gen.next()
+        device_instance = self._device_class_registry[device_name](device_name, link_id)
         
         # and register it to a new link_id
-        link_id = self.lid_gen.next()
         self._link_registry[link_id] = device_instance
         
         return link_id, self._link_registry[link_id]
@@ -203,13 +203,17 @@ class Vxi11CoreHandler(Vxi11Handler):
         try:
             logger.debug("Device name \"%s\"", device_name)
             self.link_id, self.device = self.server.link_create(device_name)
-            if device_name == 'inst0':
-                self.device.device_list = self.server.device_list
-            abort_port = self.server.abort_port
         except KeyError:
             error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
             logger.debug("Create link failed")
-        
+        else:
+            if lock_device == True:
+                flags = 0
+                error = self.device.device_lock(flags, lock_timeout)
+            if device_name == 'inst0':
+                self.device.device_list = self.server.device_list
+            abort_port = self.server.abort_port
+            
         result = (error, self.link_id, abort_port, MAX_RECEIVE_SIZE)
         self.packer.pack_create_link_resp(result)
         return
@@ -225,6 +229,8 @@ class Vxi11CoreHandler(Vxi11Handler):
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
             logger.debug('DESTROY_LINK %s to %s', link_id, self.device.device_name)
+            if self.device.is_locked():
+                self.device.device_unlock()            
             self.server.link_delete(self.link_id)
             error = vxi11.ERR_NO_ERROR
             
@@ -242,6 +248,8 @@ class Vxi11CoreHandler(Vxi11Handler):
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         elif len(opaque_data) > MAX_RECEIVE_SIZE:
             error = vxi11.ERR_PARAMETER_ERROR
+        elif not self.device.has_lock():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error = self.device.device_write(opaque_data)
             
@@ -262,6 +270,8 @@ class Vxi11CoreHandler(Vxi11Handler):
         opaque_data = b''
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.has_lock():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error, opaque_data = self.device.device_read()
             
@@ -281,6 +291,8 @@ class Vxi11CoreHandler(Vxi11Handler):
         stb=0
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.has_lock():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error,stb = self.device.device_readstb( flags, lock_timeout, io_timeout)
             
@@ -298,6 +310,8 @@ class Vxi11CoreHandler(Vxi11Handler):
         error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.has_lock():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error = self.device.device_trigger(flags, lock_timeout, io_timeout)
             
@@ -314,6 +328,8 @@ class Vxi11CoreHandler(Vxi11Handler):
         error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.has_lock():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error = self.device.device_clear(flags, lock_timeout, io_timeout)
             
@@ -330,6 +346,8 @@ class Vxi11CoreHandler(Vxi11Handler):
         error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.has_lock():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error = self.device.device_remote(flags, lock_timeout, io_timeout)
             
@@ -346,6 +364,8 @@ class Vxi11CoreHandler(Vxi11Handler):
         error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.has_lock():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error = self.device.device_local(flags, lock_timeout, io_timeout)
             
@@ -360,8 +380,11 @@ class Vxi11CoreHandler(Vxi11Handler):
         link_id, flags, lock_timeout = params
 
         error = vxi11.ERR_NO_ERROR
+        
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif self.device.is_locked():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error = self.device.device_lock(flags, lock_timeout)
             
@@ -371,13 +394,16 @@ class Vxi11CoreHandler(Vxi11Handler):
     def handle_19(self):
         "The device_unlock RPC is used to release locks acquired by the device_lock RPC"
         
-        params = self.unpacker.unpack_device_generic_parms()
+        params = self.unpacker.unpack_device_link()
         logger.debug('DEVICE_UNLOCK %s', params)
-        link_id, flags, lock_timeout, io_timeout = params
 
+        link_id = params
         error = vxi11.ERR_NO_ERROR
+        
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.has_lock():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error = self.device.device_unlock(flags, lock_timeout, io_timeout)
             
@@ -415,6 +441,8 @@ class Vxi11CoreHandler(Vxi11Handler):
         error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.has_lock():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error = self.device.device_enable_srq(enable,handle)
 
@@ -432,6 +460,8 @@ class Vxi11CoreHandler(Vxi11Handler):
         opaque_data_out = b""
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.has_lock():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error, opaque_data_out = self.device.device_docmd(flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in)
             

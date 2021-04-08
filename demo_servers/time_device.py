@@ -24,9 +24,9 @@ def signal_handler(signal, frame):
     instr_server.close()
     sys.exit(0)
                                         
-class TimeDevice(Vxi11.InstrumentDevice):
-    def __init__(self, device_name):
-        super().__init__(device_name)
+class TimeDevice(Vxi11.InstrumentDevice, Vxi11.instrument_device.InstrumentLock):
+    def __init__(self, device_name, link_id):
+        super().__init__(device_name, link_id)
         
     def device_read(self):
         '''respond to the device_read rpc: refer to section (B.6.4) 

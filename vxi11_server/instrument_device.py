@@ -37,15 +37,14 @@ class InstrumentDevice(object):
     each device_xxx procedure.  The procedures are from the host perspective, ie
     a device write is a write to the device and device read is a read from the device.
     '''
-    def __init__(self, device_name):
+
+    def __init__(self, device_name, link_id):
         self.device_name = device_name
+        self.link_id = link_id
         self.srq_enabled = False
         
     def name(self):
         return self.device_name
-    
-    def has_lock(self):
-        return False
     
     def device_abort(self):
         error = vxi11.ERR_NO_ERROR
@@ -161,32 +160,24 @@ class InstrumentDevice(object):
 
     def device_lock(self, flags, lock_timeout): # = 18
         "The device_lock RPC is used to acquire a device's lock."
-        error = vxi11.ERR_NO_ERROR
-        
-        if False:
-            error = vxi11.ERR_IO_TIMEOUT
-        elif False:
-            error = vxi11.ERR_IO_ERROR
-        elif False:
-            error = vxi11.ERR_ABORT
+
+        if self.acquire_lock(lock_timeout):
+            error = vxi11.ERR_NO_ERROR
+        elif self.is_locked():
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
-            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
+            error = vxi11.ERR_ABORT
             
         return error
 
     def device_unlock(self): # = 19
         "The device_unlock RPC is used to release locks acquired by the device_lock RPC."
-        error = vxi11.ERR_NO_ERROR
-        
-        if False:
-            error = vxi11.ERR_IO_TIMEOUT
-        elif False:
-            error = vxi11.ERR_IO_ERROR
-        elif False:
-            error = vxi11.ERR_ABORT
+
+        if self.release_lock():
+            error = vxi11.ERR_NO_ERROR
         else:
-            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
-            
+            error = vxi11.ERR_NO_LOCK_HELD_BY_THIS_LINK
+
         return error
 
     def device_enable_srq(self, enable, handle): # = 20
@@ -217,7 +208,40 @@ class InstrumentDevice(object):
         opaque_data_out = b""
         return error, opaque_data_out
         
-class DefaultInstrumentDevice(InstrumentDevice):
+class InstrumentLock(object):
+    # need a locking mechanism to prevent potential race on acquire lock.
+    # timeout not implemented.
+    # the spec plainly states that locking is the responsibility of the core server.
+    # this functionality might better fit in the core server and device_registry.
+    _lock_id = 0
+    
+    def has_lock(self):
+        cls = self.__class__
+        #logger.debug('has_lock() %d, %d', self.link_id, cls._lock_id)
+        return cls._lock_id == 0 or self.link_id == cls._lock_id
+
+    def is_locked(self):
+        cls = self.__class__
+        #logger.debug('has_lock() %d, %d', self.link_id, cls._lock_id)
+        return cls._lock_id != 0
+
+    def acquire_lock(self, lock_timeout):
+        cls = self.__class__
+        logger.debug('locking device %s', self.name())
+        if cls._lock_id == 0:
+            cls._lock_id = self.link_id
+
+        return self.is_locked() and self.has_lock()
+
+    def release_lock(self):
+        cls = self.__class__
+        logger.debug('unlocking device %s', self.name())
+        if cls._lock_id == self.link_id:
+            cls._lock_id = 0
+            return True
+        return False
+    
+class DefaultInstrumentDevice(InstrumentDevice, InstrumentLock):
     '''The default device is the device registered with the name of "inst0".
 
     The vxi-11 spec expects the default device to respond to the *IDN? command.
@@ -228,8 +252,8 @@ class DefaultInstrumentDevice(InstrumentDevice):
     to YourDeviceHandler, use as boilerplate, and register it when the InstrumentServer
     is initialized.
     '''
-    def __init__(self, device_name):
-        super(DefaultInstrumentDevice, self).__init__(device_name)
+    def __init__(self, device_name, link_id):
+        super(DefaultInstrumentDevice, self).__init__(device_name, link_id)
         #self.device_name = 'inst0'
         self.idn = 'python-vxi11-server', 'bbb', '1234', '567'
         self.result = 'empty'
