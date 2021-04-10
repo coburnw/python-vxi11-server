@@ -70,7 +70,7 @@ class InstrumentDevice(object):
             self.intr_client=None
         return  error
 
-    def signal_SRQ(self):
+    def signal_srq(self):
         if self.srq_enabled and self.intr_client is not None:
             self.intr_client.signal_intr_srq(self.srq_handle)
         else:
