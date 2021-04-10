@@ -51,7 +51,7 @@ class SRQTestDevice(vxi11.InstrumentDevice):
         if cmd.startswith("*IDN?"):
             self._addResponse("ulda,srq-test,1,V1.0")
         elif cmd.startswith("SRQTIMER"):
-            t= Timer(10, self.signal_SRQ )
+            t= Timer(10, self.signal_srq )
             t.start()
             self._addResponse("OK")
         else:
@@ -59,9 +59,9 @@ class SRQTestDevice(vxi11.InstrumentDevice):
             error = vxi11.Error.OPERATION_NOT_SUPPORTED
         return error
 
-    def signal_SRQ(self):
+    def signal_srq(self):
         _logging.info("SRQ startet for instrument %s",self.name())
-        super().signal_SRQ()
+        super().signal_srq()
         
 
 if __name__ == '__main__':
