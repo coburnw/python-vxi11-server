@@ -43,9 +43,9 @@ class InstrumentDevice(object):
         self.intr_client = None
         self.srq_enabled = False
         self.srq_handle = None
+        self.srq_active=False
 
     def create_intr_chan(self,host_addr, host_port, prog_num, prog_vers, prog_family):
-
         if self.intr_client is not None:
             return vxi11.ERR_CHANNEL_ALREADY_ESTABLISHED
 
@@ -70,8 +70,22 @@ class InstrumentDevice(object):
             self.intr_client=None
         return  error
 
+    def device_readstb(self, flags, lock_timeout, io_timeout): # 13, generic params
+        "The device_readstb RPC is used to read a device's status byte."
+        error = vxi11.ERR_NO_ERROR
+        stb = 0
+
+        # set bit 6 (of 0..7)  if srq is activated
+        if self.srq_active:
+            stb |= 0b_0100_0000
+            # reset SRQ after read according to spec
+            self.srq_active=False
+
+        return error, stb
+
     def signal_srq(self):
         if self.srq_enabled and self.intr_client is not None:
+            self.srq_active=True
             self.intr_client.signal_intr_srq(self.srq_handle)
         else:
             raise vxi11.Vxi11Exception(vxi11.ERR_CHANNEL_NOT_ESTABLISHED,
@@ -120,22 +134,6 @@ class InstrumentDevice(object):
             
         result = error, opaque_data
         return result
-
-    def device_readstb(self, flags, lock_timeout, io_timeout): # 13, generic params
-        "The device_readstb RPC is used to read a device's status byte."
-        error = vxi11.ERR_NO_ERROR
-        stb = 0
-
-        if False:
-            error = vxi11.ERR_IO_TIMEOUT
-        elif False:
-            error = vxi11.ERR_IO_ERROR
-        elif False:
-            error = vxi11.ERR_ABORT
-        else:
-            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
-            
-        return error, stb
 
     def device_trigger(self, flags, lock_timeout, io_timeout): # 14, generic params
         "The device_trigger RPC is used to send a trigger to a device."
