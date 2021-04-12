@@ -1,9 +1,10 @@
 import sys
+import os
 import signal
 import time
 import logging
 
-#import .vxi11_server as Vxi11
+sys.path.append(os.path.abspath('..'))
 import vxi11_server as Vxi11
 
 #
