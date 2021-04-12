@@ -149,7 +149,6 @@ class Vxi11Handler(rpc.RPCRequestHandler):
         self.unpacker = vxi11.Unpacker('')
         return
     
-    
 class Vxi11AbortServer(Vxi11Server):
     def __init__(self):
         Vxi11Server.__init__(self, '', vxi11.DEVICE_ASYNC_PROG, vxi11.DEVICE_ASYNC_VERS, 0, Vxi11AbortHandler)
@@ -199,7 +198,6 @@ class Vxi11CoreHandler(Vxi11Handler):
             logger.debug("Create link failed")
         
         result = (error, self.link_id, abort_port, MAX_RECEIVE_SIZE)
-
         self.turn_around()
         self.packer.pack_create_link_resp(result)
         return
@@ -215,6 +213,10 @@ class Vxi11CoreHandler(Vxi11Handler):
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
             logger.debug('DESTROY_LINK %s to %s', link_id, self.device.device_name)
+            # first disable interrupt handling of the device if it was on
+            self.device.device_enable_srq(False,None)
+            self.device.destroy_intr_chan()
+            # now remove link and therefore delete everything.
             self.server.link_delete(self.link_id)
             error = vxi11.ERR_NO_ERROR
             
@@ -392,12 +394,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_CREATE_INTR_CHAN %s', params)
         host_addr, host_port, prog_num, prog_vers, prog_family = params
 
-        error = vxi11.ERR_CHANNEL_NOT_ESTABLISHED
-
-        # xxx
-        # establish a rpc connection to this program
-        # or just pretend to
-        error = vxi11.ERR_NO_ERROR
+        error = self.device.create_intr_chan(host_addr, host_port, prog_num, prog_vers, prog_family)
 
         self.turn_around()
         self.packer.pack_device_error(error)
@@ -409,7 +406,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         # no params (void) for this function according to vxi11-spec B.6.13 V1.0 !
         logger.debug('DEVICE_DESTROY_INTR_CHAN')
 
-        error = vxi11.ERR_NO_ERROR
+        error = self.device.destroy_intr_chan()
 
         self.turn_around()
         self.packer.pack_device_error(error)
@@ -445,8 +442,8 @@ class Vxi11CoreHandler(Vxi11Handler):
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
             error, opaque_data_out = self.device.device_docmd(flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in)
+            
         result = error, opaque_data_out
-
         self.turn_around()
         self.packer.pack_device_docmd_resp(result)
         return
