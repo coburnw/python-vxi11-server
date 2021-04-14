@@ -522,7 +522,6 @@ class TCPIntrClient(rpc.TCPClient):
                 self.packer.pack_device_intr_srq_parms, None )
     
 class IntrHandler(rpc.RPCRequestHandler):
-    
     def addpackers(self):
         # amend rpc packers with our vxi11 packers
         self.packer = Packer()
@@ -533,6 +532,7 @@ class IntrHandler(rpc.RPCRequestHandler):
         params = self.unpacker.unpack_device_intr_srq_params()
         handle = params
 
+        logger.debug("got srq for handle %r",handle)
         # find the device to send SRQ to via handle and registry
         self.server.SRQ_CLASS_REGISTRY[handle].srq_callback()
         # nothing to pack but void
@@ -937,7 +937,7 @@ class Device(object):
         intr_host, _  = self.client.sock.getsockname()
         # and use the port from our intrserver instance
         _, intr_port = serv.server_address
-        logger.info("intr handler connect to %s, %i"% (intr_host,intr_port))
+        logger.info("intr handler may connect to %s, %i"% (intr_host,intr_port))
         
         # tell the device to enable interrupt services
         error=self.client.create_intr_chan(int(ipaddress.IPv4Address(intr_host)),
