@@ -31,7 +31,7 @@ class SRQTestDevice(vxi11.InstrumentDevice):
             error= self._processCommand(cmd.strip())
             if error != vxi11.Error.NO_ERROR:
                 break
-            self.addResponse(";")#  add a separator to the end of response
+            self._addResponse(";")#  add a separator to the end of response
 
         self.response=self.response.rstrip(";") # remove last separator
         return error
