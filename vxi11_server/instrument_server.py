@@ -70,20 +70,6 @@ class LockedIncrementer(object):
         finally:
             self.lock.release()
             
-# Packers unique to this project
-class Packer(vxi11.Packer):
-    def pack_device_error(self, error):
-        self.pack_int(0)        #fill in opaque_results in RPC accepted_reply
-        self.pack_int(error)
-
-    def pack_destroy_link_resp(self, error):
-        self.pack_device_error(error)
-        
-class Unpacker(vxi11.Unpacker):
-    def unpack_destroy_link_parms(self):
-        link = self.unpack_int()
-        return link
-
 class Registry(object):
     def __init__(self):
         registry = {}
@@ -114,10 +100,10 @@ class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
     # move device_class_registry, link_create/delete to CoreHandler?
     def link_create(self, device_name):        
         # create and initialize an instance of the device handler registered to device_name
-        link_id = self.lid_gen.next()
         device_instance = self._device_class_registry[device_name](device_name, link_id)
         
         # and register it to a new link_id
+        link_id = self.lid_gen.next()
         self._link_registry[link_id] = device_instance
         
         return link_id, self._link_registry[link_id]
@@ -159,8 +145,8 @@ class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
 class Vxi11Handler(rpc.RPCRequestHandler):
     def addpackers(self):
         # amend rpc packers with our vxi11 packers
-        self.packer = Packer()
-        self.unpacker = Unpacker('')
+        self.packer = vxi11.Packer()
+        self.unpacker = vxi11.Unpacker('')
         return
     
 class Vxi11AbortServer(Vxi11Server):
@@ -174,6 +160,7 @@ class Vxi11AbortHandler(Vxi11Handler):
         link_id = params
         error=self.server.link_abort(link_id)
 
+        self.turn_around()
         self.packer.pack_device_error(error)
         return
     
@@ -213,15 +200,16 @@ class Vxi11CoreHandler(Vxi11Handler):
             if device_name == 'inst0':
                 self.device.device_list = self.server.device_list
             abort_port = self.server.abort_port
-            
+
         result = (error, self.link_id, abort_port, MAX_RECEIVE_SIZE)
+        self.turn_around()
         self.packer.pack_create_link_resp(result)
         return
     
     def handle_23(self):
         "The destroy_link call is used to close the identified link.  The network instrument server recovers resources associated with the link"
         
-        params = self.unpacker.unpack_destroy_link_parms()
+        params = self.unpacker.unpack_device_link()
         link_id = params
 
         error = vxi11.ERR_NO_ERROR
@@ -230,11 +218,16 @@ class Vxi11CoreHandler(Vxi11Handler):
         else:
             logger.debug('DESTROY_LINK %s to %s', link_id, self.device.device_name)
             if self.device.is_locked():
-                self.device.device_unlock()            
+                self.device.device_unlock() 
+            # first disable interrupt handling of the device if it was on
+            self.device.device_enable_srq(False,None)
+            self.device.destroy_intr_chan()
+            # now remove link and therefore delete everything.
             self.server.link_delete(self.link_id)
             error = vxi11.ERR_NO_ERROR
             
-        self.packer.pack_destroy_link_resp(error)
+        self.turn_around()
+        self.packer.pack_device_error(error)
         return
     
     def handle_11(self):
@@ -257,6 +250,8 @@ class Vxi11CoreHandler(Vxi11Handler):
             result = (error, 0)
         else:
             result = (error, len(opaque_data))
+
+        self.turn_around()
         self.packer.pack_device_write_resp(result)
         return
     
@@ -274,9 +269,10 @@ class Vxi11CoreHandler(Vxi11Handler):
             error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
             error, opaque_data = self.device.device_read()
-            
+
         reason = vxi11.RX_END
         result = (error, reason, opaque_data)
+        self.turn_around()
         self.packer.pack_device_read_resp(result)
         return
     
@@ -297,6 +293,7 @@ class Vxi11CoreHandler(Vxi11Handler):
             error,stb = self.device.device_readstb( flags, lock_timeout, io_timeout)
             
         result = (error, stb)
+        self.turn_around()
         self.packer.pack_device_read_stb_resp(result)
         return
     
@@ -315,6 +312,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         else:
             error = self.device.device_trigger(flags, lock_timeout, io_timeout)
             
+        self.turn_around()
         self.packer.pack_device_error(error)
         return
     
@@ -333,6 +331,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         else:
             error = self.device.device_clear(flags, lock_timeout, io_timeout)
             
+        self.turn_around()
         self.packer.pack_device_error(error)
         return
     
@@ -351,6 +350,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         else:
             error = self.device.device_remote(flags, lock_timeout, io_timeout)
             
+        self.turn_around()
         self.packer.pack_device_error(error)
         return
     
@@ -369,6 +369,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         else:
             error = self.device.device_local(flags, lock_timeout, io_timeout)
             
+        self.turn_around()
         self.packer.pack_device_error(error)
         return
     
@@ -380,7 +381,6 @@ class Vxi11CoreHandler(Vxi11Handler):
         link_id, flags, lock_timeout = params
 
         error = vxi11.ERR_NO_ERROR
-        
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         elif self.device.is_locked():
@@ -388,6 +388,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         else:
             error = self.device.device_lock(flags, lock_timeout)
             
+        self.turn_around()
         self.packer.pack_device_error(error)
         return
     
@@ -396,10 +397,9 @@ class Vxi11CoreHandler(Vxi11Handler):
         
         params = self.unpacker.unpack_device_link()
         logger.debug('DEVICE_UNLOCK %s', params)
-
-        link_id = params
-        error = vxi11.ERR_NO_ERROR
-        
+ 	link_id = params
+ 
+       	error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         elif not self.device.has_lock():
@@ -407,6 +407,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         else:
             error = self.device.device_unlock(flags, lock_timeout, io_timeout)
             
+        self.turn_around()
         self.packer.pack_device_error(error)
         return
     
@@ -417,7 +418,9 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_CREATE_INTR_CHAN %s', params)
         host_addr, host_port, prog_num, prog_vers, prog_family = params
 
-        error = vxi11.ERR_CHANNEL_NOT_ESTABLISHED
+        error = self.device.create_intr_chan(host_addr, host_port, prog_num, prog_vers, prog_family)
+
+        self.turn_around()
         self.packer.pack_device_error(error)
         return
     
@@ -427,7 +430,9 @@ class Vxi11CoreHandler(Vxi11Handler):
         # no params (void) for this function according to vxi11-spec B.6.13 V1.0 !
         logger.debug('DEVICE_DESTROY_INTR_CHAN')
 
-        error = vxi11.ERR_NO_ERROR
+        error = self.device.destroy_intr_chan()
+
+        self.turn_around()
         self.packer.pack_device_error(error)
         return
         
@@ -446,6 +451,7 @@ class Vxi11CoreHandler(Vxi11Handler):
         else:
             error = self.device.device_enable_srq(enable,handle)
 
+        self.turn_around()
         self.packer.pack_device_error(error)
         return
     
@@ -466,6 +472,7 @@ class Vxi11CoreHandler(Vxi11Handler):
             error, opaque_data_out = self.device.device_docmd(flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in)
             
         result = error, opaque_data_out
+        self.turn_around()
         self.packer.pack_device_docmd_resp(result)
         return
     
