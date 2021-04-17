@@ -9,6 +9,7 @@ python-vxi11-server makes your Beagle Bone Black or other linux/python enabled d
 Since VXI-11 specifies how instrument control and data messages transfer over ethernet, libraries such as this one and python-vxi11 do the hard work of setting up and tearing down the link, packing and unpacking the data, and getting the data to the proper endpoints.
 
 Inspired by sonium0's [pyvxi11server](https://github.com/sonium0/pyvxi11server)
+SRQ support by [ulda](https://github.com/ulda)
 
 ### Requirements
   * Ported to Python 3 and tested on the RPi
@@ -27,7 +28,7 @@ The only client library tested against is python-vxi11.  Other clients may expos
 ### Getting started
 Unlike a client library, this 'package' is not installed.  Simply clone and copy into the source tree of your project.
 
-#### server side
+#### Server side
 Run the simple demo clock_device.py program to start an instrument server that responds to a read command with the current time.  Address any portmapper (rpcbind?) issues that may occur.
 
 #### Client side
@@ -45,17 +46,20 @@ For instance here is a very simple VXI-11 time server device that defines an Ins
     import vxi11_server as Vxi11
 
     class TimeDevice(Vxi11.InstrumentDevice):
-        def __init__(self, device_name):
-            super().__init__(device_name)
-
-        def device_read(self):
+        def device_init(self):
+            pass
+			
+        def device_read(self, request_size, term_char, flags, io_timeout):
             '''respond to the device_read rpc: refer to section (B.6.4)
                of the VXI-11 TCP/IP Instrument Protocol Specification'''
+			   
             error = Vxi11.Error.NO_ERROR
-            result = time.strftime("%H:%M:%S +0000", time.gmtime())
-			# In this case, our result is an ascii string. 
-			# encode and return the result as binary (opaque) data for transfer to host
-            return error, result.encode('ascii')
+            reason = Vxi11.ReadRespReason.END
+        
+            # opaque_data is a bytes array, so encode our string appropriately!
+            data = time.strftime("%H:%M:%S +0000", time.gmtime())
+            opaque_data = data.encode("ascii") 
+            return error, reason, data
 
     if __name__ == '__main__':
         # create a server, attach a device, and start a thread to listen for requests
@@ -74,19 +78,18 @@ To access the time server using python-vxi11 as the client library:
 
     instr = vxi11.Instrument("TCPIP::127.0.0.1::inst1::INSTR")
 
-    #read the current time value from the instruments TimeDevice
+    # read the current time value from the instruments TimeDevice
     instr.read()
 
   
 ### Notes
   * be aware that add_device_handler requires a class definition not a class instance as indicated by the lack of parenthesis.  The server instantiates a new instance of your device handler class with each connect request.
   * Write a [python-ivi](https://github.com/python-ivi/python-ivi) driver for your new device
-  * no attempt to harden or benchmark the code has been made.  use at own risk.
+  * no serious attempt to harden, benchmark, or even test the code has been made.  use at own risk.
 
 ### Examples Projects
   * thasti's [GPIB Bridge](https://git.loetlabor-jena.de/thasti/tcpip2instr) project
   
 ### Todo
-  * come up with a simple default locking strategy to place in the InstrumentDevice base class
-  * same for abort functionality
-  * get rid of need for calling super.__init__(). Perhaps add a device_init() function?
+  * add timeout to the lock mechanism
+  * add abort example to explore/verify functionality

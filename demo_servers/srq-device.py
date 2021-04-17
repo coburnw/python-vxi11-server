@@ -18,11 +18,11 @@ def signal_handler(signal, frame):
                                         
 class SRQTestDevice(vxi11.InstrumentDevice):
 
-    def __init__(self, device_name):
-        super().__init__(device_name)
+    def device_init(self):
         self.response = ""
-
-    def device_write(self, opaque_data):
+        return
+    
+    def device_write(self, opaque_data, flags, io_timeout):
         "The device_write RPC is used to write data to the specified device"
         error = vxi11.Error.NO_ERROR
 
@@ -33,13 +33,14 @@ class SRQTestDevice(vxi11.InstrumentDevice):
                 break
         return error
 
-    def device_read(self): 
+    def device_read(self, request_size, term_char, flags, io_timeout): 
         "The device_read RPC is used to read data from the device to the controller"
         error = vxi11.Error.NO_ERROR
         aStr=self.response
         self.response=""
+        reason = vxi11.ReadRespReason.END
         # returns opaque_data!
-        return error, aStr.encode("ascii","ignore")
+        return error, reason, aStr.encode("ascii","ignore")
     
     def _addResponse(self,aStr):
         self.response+=aStr
