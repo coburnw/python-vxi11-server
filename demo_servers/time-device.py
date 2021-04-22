@@ -26,15 +26,22 @@ def signal_handler(signal, frame):
     sys.exit(0)
                                         
 class TimeDevice(Vxi11.InstrumentDevice):
-    def __init__(self, device_name):
-        super().__init__(device_name)
-        
-    def device_read(self):
+
+    def device_init(self):
+        #print('TimeDevice: device_init()')
+        return
+    
+    def device_read(self, request_size, term_char, flags, io_timeout):
         '''respond to the device_read rpc: refer to section (B.6.4) 
         of the VXI-11 TCP/IP Instrument Protocol Specification''' 
         error = Vxi11.Error.NO_ERROR
-        result = time.strftime("%H:%M:%S +0000", time.gmtime())
-        return error, result.encode("ascii") # opaque_data is a bystes array, so encode correctly!
+        reason = Vxi11.ReadRespReason.END
+        
+        # opaque_data is a bytes array, so encode correctly!
+        data = time.strftime("%H:%M:%S +0000", time.gmtime())
+        opaque_data = data.encode("ascii") 
+
+        return error, reason, opaque_data
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)

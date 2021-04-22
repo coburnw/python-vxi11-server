@@ -27,6 +27,11 @@ from . import vxi11
 
 logger = logging.getLogger(__name__)
 
+class ReadRespReason():
+    END = vxi11.RX_END
+    CHR = vxi11.RX_CHR
+    REQCNT = vxi11.RX_REQCNT
+    
 class InstrumentDevice(object):
     '''Base class for Instrument Devices.
 
@@ -38,12 +43,17 @@ class InstrumentDevice(object):
     each device_xxx procedure.  The procedures are from the host perspective, ie
     a device write is a write to the device and device read is a read from the device.
     '''
-    def __init__(self, device_name):
+
+    def __init__(self, device_name, device_lock):
         self.device_name = device_name
+        self.lock = device_lock
+
         self.intr_client = None
         self.srq_enabled = False
         self.srq_handle = None
-        self.srq_active=False
+        self.srq_active = False
+        
+        return
 
     def create_intr_chan(self,host_addr, host_port, prog_num, prog_vers, prog_family):
         if self.intr_client is not None:
@@ -94,16 +104,18 @@ class InstrumentDevice(object):
     def name(self):
         return self.device_name
 
-    # functions to overwrite when sublcassing start here
+    # functions to overwrite when subclassing start here
     
-    def has_lock(self):
-        return False
+    def device_init(self):
+        "Set the devices idn string etc here.  Called immediately after instance creation."
+        return
     
     def device_abort(self):
+        "The device_abort RPC stops an in-progress call."
         error = vxi11.ERR_NO_ERROR
         return error
     
-    def device_write(self, opaque_data): # 11
+    def device_write(self, opaque_data, flags, io_timeout): # 11
         "The device_write RPC is used to write data to the specified device"
         error = vxi11.ERR_NO_ERROR
 
@@ -118,7 +130,7 @@ class InstrumentDevice(object):
             
         return error
     
-    def device_read(self): #= 12
+    def device_read(self, request_size, term_char, flags, io_timeout): #= 12
         "The device_read RPC is used to read data from the device to the controller"
         error = vxi11.ERR_NO_ERROR
         opaque_data = b""
@@ -131,11 +143,12 @@ class InstrumentDevice(object):
             error = vxi11.ERR_ABORT
         else:
             error = vxi11.ERR_OPERATION_NOT_SUPPORTED
-            
-        result = error, opaque_data
+
+        reason = ReadRespReason.END
+        result = error, reason, opaque_data
         return result
 
-    def device_trigger(self, flags, lock_timeout, io_timeout): # 14, generic params
+    def device_trigger(self, flags, io_timeout): # 14, generic params
         "The device_trigger RPC is used to send a trigger to a device."
         error = vxi11.ERR_NO_ERROR
         
@@ -150,7 +163,7 @@ class InstrumentDevice(object):
             
         return error
 
-    def device_clear(self, flags, lock_timeout, io_timeout): # 15, generic params
+    def device_clear(self, flags, io_timeout): # 15, generic params
         "The device_clear RPC is used to send a device clear to a device"
         error = vxi11.ERR_NO_ERROR
         
@@ -165,7 +178,7 @@ class InstrumentDevice(object):
             
         return error
 
-    def device_remote(self, flags, lock_timeout, io_timeout): # 16, generic params
+    def device_remote(self, flags, io_timeout): # 16, generic params
         "The device_remote RPC is used to place a device in a remote state wherein all programmable local controls are disabled"
         error = vxi11.ERR_NO_ERROR
         
@@ -180,38 +193,8 @@ class InstrumentDevice(object):
             
         return error
 
-    def device_local(self, flags, lock_timeout, io_timeout): # 17, generic params
+    def device_local(self, flags, io_timeout): # 17, generic params
         "The device_local RPC is used to place a device in a local state wherein all programmable local controls are enabled"
-        error = vxi11.ERR_NO_ERROR
-        
-        if False:
-            error = vxi11.ERR_IO_TIMEOUT
-        elif False:
-            error = vxi11.ERR_IO_ERROR
-        elif False:
-            error = vxi11.ERR_ABORT
-        else:
-            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
-            
-        return error
-
-    def device_lock(self, flags, lock_timeout): # = 18
-        "The device_lock RPC is used to acquire a device's lock."
-        error = vxi11.ERR_NO_ERROR
-        
-        if False:
-            error = vxi11.ERR_IO_TIMEOUT
-        elif False:
-            error = vxi11.ERR_IO_ERROR
-        elif False:
-            error = vxi11.ERR_ABORT
-        else:
-            error = vxi11.ERR_OPERATION_NOT_SUPPORTED
-            
-        return error
-
-    def device_unlock(self): # = 19
-        "The device_unlock RPC is used to release locks acquired by the device_lock RPC."
         error = vxi11.ERR_NO_ERROR
         
         if False:
@@ -237,7 +220,7 @@ class InstrumentDevice(object):
             
         return error
 
-    def device_docmd(self, flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in): # = 22
+    def device_docmd(self, flags, io_timeout, cmd, network_order, data_size, opaque_data_in): # = 22
         "The device_docmd RPC allows a variety of operations to be executed"
         error = vxi11.ERR_NO_ERROR
         
@@ -264,23 +247,23 @@ class DefaultInstrumentDevice(InstrumentDevice):
     to YourDeviceHandler, use as boilerplate, and register it when the InstrumentServer
     is initialized.
     '''
-    def __init__(self, device_name):
-        super(DefaultInstrumentDevice, self).__init__(device_name)
-        #self.device_name = 'inst0'
+
+    def device_init(self):
         self.idn = 'python-vxi11-server', 'bbb', '1234', '567'
         self.result = 'empty'
+        return
     
-    def device_write(self, opaque_data):
+    def device_write(self, opaque_data, flags, io_timeout):
         error = vxi11.ERR_NO_ERROR
 
-        #opaque_data is a bytes array, so decode it correclty
+        #opaque_data is a bytes array, so decode it correctly
         cmd=opaque_data.decode("ascii")
         
         if cmd == '*IDN?':
             mfg, model, sn, fw = self.idn
             self.result = "{},{},{},{}".format(mfg, model, sn, fw)
         elif cmd  == '*DEVICE_LIST?':
-            devs = self.device_list()
+            devs = self.device_list
             self.result = ''
             isFirst = True
             for dev in devs:
@@ -295,7 +278,11 @@ class DefaultInstrumentDevice(InstrumentDevice):
         logger.info("%s: device_write(): %s %s", self.name(), cmd , self.result)
         return error
     
-    def device_read(self):
+    def device_read(self, request_size, term_char, flags, io_timeout):
         error = vxi11.ERR_NO_ERROR
-        #device-read returns opaque_data so encode it correclty
-        return error, self.result.encode("ascii")
+        reason = ReadRespReason.END
+
+        #device-read returns opaque_data so encode it correctly
+        opaque_data = self.result.encode("ascii")
+        
+        return error, reason, opaque_data

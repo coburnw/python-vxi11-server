@@ -70,26 +70,85 @@ class LockedIncrementer(object):
         finally:
             self.lock.release()
             
-class Registry(object):
+class DeviceLock(object):
+    # timeout not implemented.
+    def __init__(self, device_name):
+        self.device_name = device_name
+        self.lock = threading.Lock()
+        self.lock_id = 0
+        return
+    
+    def is_open(self, link_id, flags, timeout):
+        return self.lock_id == 0 or self.lock_id == link_id
+    
+    def is_locked(self):
+        return self.lock_id != 0
+    
+    def acquire(self, link_id, flags,lock_timeout):
+        logger.debug('locking device: %s', self.device_name)
+
+        self.lock.acquire()
+        try:
+            if self.lock_id == 0:
+                self.lock_id = link_id
+        finally:
+            self.lock.release()
+
+        return self.is_locked() and self.is_open(link_id, 0, 0)
+
+    def release(self, link_id):
+        logger.debug('unlocking device: %s', self.device_name)
+        if self.lock_id == link_id:
+            self.lock_id = 0
+            return True
+        return False
+    
+class DeviceItem(object):
+    def __init__(self, device_class):
+        self.device_class = device_class
+        self.lock = None
+        return
+    
+class DeviceRegistry(object):
+    _next_device_index = 0
+    _registry = {}
+
     def __init__(self):
-        registry = {}
+        pass
+    
+    def register(self, name, device_class):
+        if name is None:
+            while 'inst' +  str(self._next_device_index) in self._registry:
+                self._next_device_index += 1
+            name = 'inst' +  str(self._next_device_index)
+
+        if name in self._registry:
+            raise KeyError
+
+        item = DeviceItem(device_class)
+        item.lock = DeviceLock(name)
+        
+        self._registry[name] = item
+        
         return
     
-    def add(self, key, item):
-        self._device_class_registry[key] = item
-        return
-    
-    def remove(self, key):
-        del self._device_class_registry[key]
-        return
-    
-    def list(self):
-        return self._device_class_registry.keys()
-    
-    
+    def remove(self, name):
+        del self._registry[name]
+
+    def directory(self):
+        return self._registry.keys()
+
+    def factory(self, name):
+        item = self._registry[name]
+
+        device = item.device_class(name, item.lock)
+        device.device_list = self.directory()
+        
+        return device
+        
 class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
     _next_device_index = 0
-    _device_class_registry = {}
+    _device_registry = DeviceRegistry()
     _link_registry = {}
 
     def __init__(self, host, prog, vers, port, handler_class):
@@ -100,7 +159,7 @@ class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
     # move device_class_registry, link_create/delete to CoreHandler?
     def link_create(self, device_name):        
         # create and initialize an instance of the device handler registered to device_name
-        device_instance = self._device_class_registry[device_name](device_name)
+        device_instance = self._device_registry.factory(device_name)
         
         # and register it to a new link_id
         link_id = self.lid_gen.next()
@@ -127,20 +186,14 @@ class Vxi11Server(socketserver.ThreadingMixIn, rpc.TCPServer):
 
     # should the device registry be moved to the core server?
     def device_register(self, name, device_class):
-        if name is None:
-            while 'inst' +  str(self._next_device_index) in self._device_class_registry:
-                self._next_device_index += 1
-            name = 'inst' +  str(self._next_device_index)
-
-        if name in self._device_class_registry:
-            raise KeyError
-        self._device_class_registry[name] = device_class
+        self._device_registry.register(name, device_class)
         
     def device_unregister(self, name):
-        del self._device_class_registry[name]
-
-    def device_list(self):
-        return self._device_class_registry.keys()
+        self._device_registry.remove(name)
+        return
+    
+    # def device_list(self):
+    #     return self._device_registry.directory()
     
 class Vxi11Handler(rpc.RPCRequestHandler):
     def addpackers(self):
@@ -169,7 +222,8 @@ class Vxi11CoreServer(Vxi11Server):
         Vxi11Server.__init__(self, '', vxi11.DEVICE_CORE_PROG, vxi11.DEVICE_CORE_VERS, 0, Vxi11CoreHandler)
         self.abort_port = abort_port
         return
-    
+
+
 class Vxi11CoreHandler(Vxi11Handler):
         
     def handle_10(self):
@@ -183,20 +237,24 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('CREATE_LINK %s' ,params)
 
         self.link_id = 0
-        abort_port = 0
-        #maxlen = 1024
         error = vxi11.ERR_NO_ERROR
         
         try:
-            logger.debug("Device name \"%s\"", device_name)
+            logger.debug('Device name "%s"', device_name)
             self.link_id, self.device = self.server.link_create(device_name)
-            if device_name == 'inst0':
-                self.device.device_list = self.server.device_list
-            abort_port = self.server.abort_port
         except KeyError:
             error = vxi11.ERR_DEVICE_NOT_ACCESSIBLE
             logger.debug("Create link failed")
-        
+        else:
+            self.device.device_init()
+            if lock_device == True:
+                flags = 0
+                error = self.device.lock.acquire(self.link_id, flags, lock_timeout)
+
+        abort_port = 0
+        if error == vxi11.ERR_NO_ERROR:
+            abort_port = self.server.abort_port
+            
         result = (error, self.link_id, abort_port, MAX_RECEIVE_SIZE)
         self.turn_around()
         self.packer.pack_create_link_resp(result)
@@ -208,7 +266,6 @@ class Vxi11CoreHandler(Vxi11Handler):
         params = self.unpacker.unpack_device_link()
         link_id = params
 
-        error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
@@ -216,8 +273,11 @@ class Vxi11CoreHandler(Vxi11Handler):
             # first disable interrupt handling of the device if it was on
             self.device.device_enable_srq(False,None)
             self.device.destroy_intr_chan()
+
+            self.device.lock.release(link_id) 
+
             # now remove link and therefore delete everything.
-            self.server.link_delete(self.link_id)
+            self.server.link_delete(link_id)
             error = vxi11.ERR_NO_ERROR
             
         self.turn_around()
@@ -235,10 +295,12 @@ class Vxi11CoreHandler(Vxi11Handler):
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         elif len(opaque_data) > MAX_RECEIVE_SIZE:
             error = vxi11.ERR_PARAMETER_ERROR
+        elif not self.device.lock.is_open(link_id, flags, lock_timeout):
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
-            error = self.device.device_write(opaque_data)
+            error = self.device.device_write(opaque_data, flags, io_timeout)
             
-        if error != 0:
+        if error != vxi11.ERR_NO_ERROR:
             result = (error, 0)
         else:
             result = (error, len(opaque_data))
@@ -252,15 +314,16 @@ class Vxi11CoreHandler(Vxi11Handler):
         
         params = self.unpacker.unpack_device_read_parms()
         logger.debug('DEVICE_READ %s', params)
-        link_id, request_size, io_timeout, lock_timeout, flags, termChar = params
+        link_id, request_size, io_timeout, lock_timeout, flags, term_char = params
 
         opaque_data = b''
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.lock.is_open(link_id, flags, lock_timeout):
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
-            error, opaque_data = self.device.device_read()
+            error, reason, opaque_data = self.device.device_read(request_size, term_char, flags, io_timeout)
 
-        reason = vxi11.RX_END
         result = (error, reason, opaque_data)
         self.turn_around()
         self.packer.pack_device_read_resp(result)
@@ -273,12 +336,13 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_READSTB %s', params)
         link_id, flags, lock_timeout, io_timeout = params
 
-        error = vxi11.ERR_NO_ERROR
         stb=0
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.lock.is_open(link_id, flags, lock_timeout):
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
-            error,stb = self.device.device_readstb( flags, lock_timeout, io_timeout)
+            error,stb = self.device.device_readstb( flags, io_timeout)
             
         result = (error, stb)
         self.turn_around()
@@ -292,11 +356,12 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_TRIGGER %s', params)
         link_id, flags, lock_timeout, io_timeout = params
 
-        error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.lock.is_open(link_id, flags, lock_timeout):
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
-            error = self.device.device_trigger(flags, lock_timeout, io_timeout)
+            error = self.device.device_trigger(flags, io_timeout)
             
         self.turn_around()
         self.packer.pack_device_error(error)
@@ -309,11 +374,12 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_CLEAR %s', params)
         link_id, flags, lock_timeout, io_timeout = params
 
-        error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.lock.is_open(link_id, flags, lock_timeout):
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
-            error = self.device.device_clear(flags, lock_timeout, io_timeout)
+            error = self.device.device_clear(flags, io_timeout)
             
         self.turn_around()
         self.packer.pack_device_error(error)
@@ -326,11 +392,12 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_REMOTE %s', params)
         link_id, flags, lock_timeout, io_timeout = params
 
-        error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.lock.is_open(link_id, flags, lock_timeout):
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
-            error = self.device.device_remote(flags, lock_timeout, io_timeout)
+            error = self.device.device_remote(flags, io_timeout)
             
         self.turn_around()
         self.packer.pack_device_error(error)
@@ -343,11 +410,12 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_LOCAL %s', params)
         link_id, flags, lock_timeout, io_timeout = params
 
-        error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.lock.is_open(link_id, flags, lock_timeout):
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
-            error = self.device.device_local(flags, lock_timeout, io_timeout)
+            error = self.device.device_local(flags, io_timeout)
             
         self.turn_around()
         self.packer.pack_device_error(error)
@@ -360,11 +428,12 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_LOCK %s', params)
         link_id, flags, lock_timeout = params
 
-        error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif self.device.lock.acquire(link_id, flags, lock_timeout):
+            error = vxi11.ERR_NO_ERROR
         else:
-            error = self.device.device_lock(flags, lock_timeout)
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
             
         self.turn_around()
         self.packer.pack_device_error(error)
@@ -376,13 +445,16 @@ class Vxi11CoreHandler(Vxi11Handler):
         params = self.unpacker.unpack_device_link()
         logger.debug('DEVICE_UNLOCK %s', params)
         link_id = params
-
-        error = vxi11.ERR_NO_ERROR
+ 
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.lock.is_locked():
+            error = vxi11.ERR_NO_LOCK_HELD_BY_THIS_LINK
+        elif self.device.lock.release(link_id):
+       	    error = vxi11.ERR_NO_ERROR
         else:
-            error = self.device.device_unlock()
-            
+            error = vxi11.ERR_NO_LOCK_HELD_BY_THIS_LINK
+
         self.turn_around()
         self.packer.pack_device_error(error)
         return
@@ -419,7 +491,6 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_ENABLE_SRQ %s', params)
         link_id, enable, handle = params
 
-        error = vxi11.ERR_NO_ERROR
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
         else:
@@ -436,12 +507,13 @@ class Vxi11CoreHandler(Vxi11Handler):
         logger.debug('DEVICE_DOCMD %s', params)
         link_id, flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in = params
 
-        error = vxi11.ERR_NO_ERROR
         opaque_data_out = b""
         if link_id != self.link_id:
             error = vxi11.ERR_INVALID_LINK_IDENTIFIER
+        elif not self.device.lock.is_open(link_id, flags, lock_timeout):
+            error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
         else:
-            error, opaque_data_out = self.device.device_docmd(flags, io_timeout, lock_timeout, cmd, network_order, data_size, opaque_data_in)
+            error, opaque_data_out = self.device.device_docmd(flags, io_timeout, cmd, network_order, data_size, opaque_data_in)
             
         result = error, opaque_data_out
         self.turn_around()
