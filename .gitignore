@@ -1,6 +1,7 @@
 # python
 *.pyc
 __pycache__
+*.egg-info*
 
 # emacs 
 *.*~
