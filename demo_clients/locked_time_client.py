@@ -26,6 +26,13 @@ print()
 print('The TIME device has a current value of:')
 
 time_instr.lock_timeout= 10
+
+time_instr.lock(wait=True)
+time.sleep(1)
+time_instr.unlock()
+# verify missmatched unlocks raise 'no lock held' exception
+#time_instr.unlock()
+
 while True:
     try:
         result = time_instr.lock(wait=True)

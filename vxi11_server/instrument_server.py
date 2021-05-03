@@ -100,7 +100,9 @@ class DeviceLock(object):
 
         error = vxi11.ERR_DEVICE_LOCKED_BY_ANOTHER_LINK
 
-        if self._acquire(flags, lock_timeout):
+        if self.lock_id == link_id:
+            pass
+        elif self._acquire(flags, lock_timeout):
             self.lock_id = link_id
             error = vxi11.ERR_NO_ERROR
             
