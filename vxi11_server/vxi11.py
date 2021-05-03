@@ -698,7 +698,7 @@ class Device(object):
         self.client.sock.settimeout(self.timeout+1)
         error, link, abort_port, max_recv_size = self.client.create_link(
             self.client_id,
-            0,
+            0, #lock_device,
             self._lock_timeout_ms,
             self.name.encode("ascii")
         )
@@ -884,12 +884,14 @@ class Device(object):
         if error:
             raise Vxi11Exception(error, 'clear')
 
-    def lock(self):
+    def lock(self, wait=False):
         "Send lock command"
         if self.link is None:
             self.open()
 
         flags = 0
+        if wait == True:
+            flags |= OP_FLAG_WAIT_BLOCK
 
         error = self.client.device_lock(
             self.link,
