@@ -8,8 +8,8 @@ python-vxi11-server makes your Beagle Bone Black or other linux/python enabled d
 
 Since VXI-11 specifies how instrument control and data messages transfer over ethernet, libraries such as this one and python-vxi11 do the hard work of setting up and tearing down the link, packing and unpacking the data, and getting the data to the proper endpoints.
 
-Inspired by sonium0's [pyvxi11server](https://github.com/sonium0/pyvxi11server)
-SRQ support by [ulda](https://github.com/ulda)
+  *Inspired by sonium0's [pyvxi11server](https://github.com/sonium0/pyvxi11server)
+  *SRQ support by [ulda](https://github.com/ulda)
 
 ### Requirements
   * Ported to Python 3 and tested on the RPi
@@ -29,7 +29,7 @@ The only client library tested against is python-vxi11.  Other clients may expos
 Unlike a client library, this 'package' is not installed.  Simply clone and copy into the source tree of your project.
 
 #### Server side
-Run the simple demo clock_device.py program to start an instrument server that responds to a read command with the current time.  Address any portmapper (rpcbind?) issues that may occur.
+Run the simple demo clock_device.py program to start an instrument server that responds to a read command with the current time.  Address any portmapper (rpcbind?) issues that may occur.  See this [issue](https://github.com/coburnw/python-vxi11-server/issues/2#issuecomment-840338371) for some help running in windows.
 
 #### Client side
 Copy clock_client.py to the client folder/computer and edit the connect string to reflect domain names or ip addresses of your network.  Run clock_client.py to extract the time from the server's clock_device.
@@ -57,9 +57,10 @@ For instance here is a very simple VXI-11 time server device that defines an Ins
             reason = Vxi11.ReadRespReason.END
         
             # opaque_data is a bytes array, so encode our string appropriately!
-            data = time.strftime("%H:%M:%S +0000", time.gmtime())
-            opaque_data = data.encode("ascii") 
-            return error, reason, data
+            data = time.strftime('%H:%M:%S +0000', time.gmtime())
+            opaque_data = data.encode('ascii')
+			
+            return error, reason, opaque_data
 
     if __name__ == '__main__':
         # create a server, attach a device, and start a thread to listen for requests
@@ -76,7 +77,7 @@ To access the time server using python-vxi11 as the client library:
 
     import vxi11
 
-    instr = vxi11.Instrument("TCPIP::127.0.0.1::inst1::INSTR")
+    instr = vxi11.Instrument('TCPIP::127.0.0.1::inst1::INSTR')
 
     # read the current time value from the instruments TimeDevice
     instr.read()
@@ -91,5 +92,5 @@ To access the time server using python-vxi11 as the client library:
   * thasti's [GPIB Bridge](https://git.loetlabor-jena.de/thasti/tcpip2instr) project
   
 ### Todo
-  * add timeout to the lock mechanism
+  * move responsibility for packet segmentation from the application to the library
   * add abort example to explore/verify functionality
