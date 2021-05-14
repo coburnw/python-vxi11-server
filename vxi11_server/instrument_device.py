@@ -80,7 +80,7 @@ class InstrumentDevice(object):
             self.intr_client=None
         return  error
 
-    def device_readstb(self, flags, lock_timeout, io_timeout): # 13, generic params
+    def device_readstb(self, flags, io_timeout): # 13, generic params
         "The device_readstb RPC is used to read a device's status byte."
         error = vxi11.ERR_NO_ERROR
         stb = 0
