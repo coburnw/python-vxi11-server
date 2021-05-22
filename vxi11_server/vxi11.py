@@ -627,7 +627,7 @@ def list_resources(ip=None, timeout=1):
 
 class Device(object):
     "VXI-11 device interface client"
-    def __init__(self, host, name = None, client_id = None, term_char = None):
+    def __init__(self, host, name = None, client_id = None, term_char = None, lock_on_open = False):
         "Create new VXI-11 device object"
         self.link = None
 
@@ -654,7 +654,12 @@ class Device(object):
         self.name = name
         self.client_id = client_id
         self.term_char = term_char
+
         self.lock_timeout = 10
+        self.lock_on_open = 0
+        if lock_on_open:
+            self.lock_on_open = 1
+
         self.timeout = 10
         self.abort_port = 0
         self.max_recv_size = 0
@@ -698,7 +703,7 @@ class Device(object):
         self.client.sock.settimeout(self.timeout+1)
         error, link, abort_port, max_recv_size = self.client.create_link(
             self.client_id,
-            0, #lock_device,
+            self.lock_on_open,
             self._lock_timeout_ms,
             self.name.encode("ascii")
         )
