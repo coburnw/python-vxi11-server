@@ -8,9 +8,6 @@ python-vxi11-server makes your Beagle Bone Black or other linux/python enabled d
 
 Since VXI-11 specifies how instrument control and data messages transfer over ethernet, libraries such as this one and python-vxi11 do the hard work of setting up and tearing down the link, packing and unpacking the data, and getting the data to the proper endpoints.
 
-  *Inspired by sonium0's [pyvxi11server](https://github.com/sonium0/pyvxi11server)
-  *SRQ support by [ulda](https://github.com/ulda)
-
 ### Requirements
   * Ported to Python 3 and tested on the RPi
 
@@ -84,9 +81,13 @@ To access the time server using python-vxi11 as the client library:
 
   
 ### Notes
-  * be aware that add_device_handler requires a class definition not a class instance as indicated by the lack of parenthesis.  The server instantiates a new instance of your device handler class with each connect request.
+  * be aware that ``add_device_handler()`` requires a class definition not a class instance as indicated by the lack of parenthesis.  The server instantiates a new instance of your device handler class with each connect request.
   * Write a [python-ivi](https://github.com/python-ivi/python-ivi) driver for your new device
   * no serious attempt to harden, benchmark, or even test the code has been made.  use at own risk.
+
+### Thanks To
+  * sonium0's [pyvxi11server](https://github.com/sonium0/pyvxi11server) for inspiration
+  * SRQ support by [ulda](https://github.com/ulda)
 
 ### Examples Projects
   * thasti's [GPIB Bridge](https://git.loetlabor-jena.de/thasti/tcpip2instr) project
