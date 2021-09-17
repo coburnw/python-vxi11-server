@@ -614,7 +614,7 @@ class RPCRequestHandler(socketserver.BaseRequestHandler):
                 reply = self.handle_call(call)
                 if reply is not None:
                     sendrecord(self.request, reply)
-            except(EOFError):
+            except(EOFError, ConnectionError):
                 #print 'rpcrequesthandler.handle() got EOF, exiting'
                 break
             
