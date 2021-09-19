@@ -517,8 +517,15 @@ class TCPIntrClient(rpc.TCPClient):
         self.unpacker = Unpacker('')
         rpc.TCPClient.__init__(self, host, DEVICE_INTR_PROG, DEVICE_INTR_VERS, port)
 
+    def do_call(self):
+        call = self.packer.get_buf()
+        rpc.sendrecord(self.sock, call)
+        # vxi11 spec B.3.1. states that SRQ should not wait for an answer
+        # because of deadlocks
+        # so overwrite the original method of RawTCPClient
+        
     def signal_intr_srq(self, handle):
-        return self.make_call(DEVICE_INTR_SRQ, handle,
+        self.make_call(DEVICE_INTR_SRQ, handle,
                 self.packer.pack_device_intr_srq_parms, None )
     
 class IntrHandler(rpc.RPCRequestHandler):
@@ -535,8 +542,13 @@ class IntrHandler(rpc.RPCRequestHandler):
         logger.debug("got srq for handle %r",handle)
         # find the device to send SRQ to via handle and registry
         self.server.SRQ_CLASS_REGISTRY[handle].srq_callback()
-        # nothing to pack but void
+        # turn_around() also checks for garbage arguments, so call it
         self.turn_around()
+        # vxi11 spec B.3.1. states that SRQ should not reply anything
+        # because this will cause deadlocks.
+        # so empty the packer to remove the SUCCESS that turn_around() packed.
+        # sendrecord() will not transmit empty records
+        self.packer.reset()
         
 class IntrServer(socketserver.ThreadingMixIn, rpc.TCPServer):
     INTR_SERVER=None
