@@ -541,12 +541,21 @@ class IntrHandler(rpc.RPCRequestHandler):
 
         logger.debug("got srq for handle %r",handle)
         # find the device to send SRQ to via handle and registry
-        self.server.SRQ_CLASS_REGISTRY[handle].srq_callback()
-        # turn_around() also checks for garbage arguments, so call it
-        self.turn_around()
+        try:
+            self.server.SRQ_CLASS_REGISTRY[handle].srq_callback()
+        except KeyError:
+            logger.error("got srq for unknown handle %r",handle)
+            # we do not complain because nobody is waiting for an answer.
+        except TypeError as e:
+            logger.error("got srq but callback is invalid: %s",str(e) )
+            
+        # turn_around() also checks for garbage arguments and raises errors,
+        # so don't call it - nobody will listen to complains anyway
+        # self.turn_around()
+
         # vxi11 spec B.3.1. states that SRQ should not reply anything
         # because this will cause deadlocks.
-        # so empty the packer to remove the SUCCESS that turn_around() packed.
+        # so empty the packer to remove anything that handle_call packed already.
         # sendrecord() will not transmit empty records
         self.packer.reset()
         
