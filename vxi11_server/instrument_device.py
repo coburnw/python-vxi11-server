@@ -267,7 +267,7 @@ class DefaultInstrumentDevice(InstrumentDevice):
         error = vxi11.ERR_NO_ERROR
 
         #opaque_data is a bytes array, so decode it correctly
-        cmd=opaque_data.decode("ascii")
+        cmd=opaque_data.decode("ascii").strip()
         
         if cmd == '*IDN?':
             mfg, model, sn, fw = self.idn
